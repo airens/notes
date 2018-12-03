@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import re
+from os import path
 
 from modules.syntax import PythonHighlighter
 
@@ -149,6 +150,11 @@ class Form(QMainWindow, Ui_MainWindow):
             else:
                 self.btn_new_save.setText("New")
 
+    def update_tag_checkboxes(self):
+        for i in range(self.tags_layout.count()):
+            cb_tag = self.tags_layout.itemAt(i).widget()
+            cb_tag.setChecked(True if cb_tag.text()[1:] in self.tags else False)
+
     def draw_tag_checkboxes(self):
         for i in reversed(range(self.tags_layout.count())):
             self.tags_layout.itemAt(i).widget().setParent(None)
@@ -161,11 +167,7 @@ class Form(QMainWindow, Ui_MainWindow):
                 cb_tag.setFocusPolicy(Qt.NoFocus)
                 cb_tag.clicked.connect(self.cb_clicked)
                 self.tags_layout.addWidget(cb_tag)
-
-    def update_tag_checkboxes(self):
-        for i in range(self.tags_layout.count()):
-            cb_tag = self.tags_layout.itemAt(i).widget()
-            cb_tag.setChecked(True if cb_tag.text()[1:] in self.tags else False)
+            self.update_tag_checkboxes()
 
     def key_pressed(self, func):
         def f(*args):
@@ -252,7 +254,6 @@ class Form(QMainWindow, Ui_MainWindow):
             if self.mode == "new":
                 self.cur_note_id = db.insert_note(self.title, self.body)
                 self.btn_new_save.setText("New")
-                self.set_mode("search")
             elif self.cur_note_id:
                 db.update_note(self.cur_note_id, self.title, self.body)
                 self.btn_new_save.setText("New")
@@ -305,8 +306,18 @@ class Form(QMainWindow, Ui_MainWindow):
         with open("settings.json") as file:
             try:
                 settings = json.load(file)
-                if "main_window" in settings and "width" in settings["main_window"] and "height" in settings["main_window"]:
-                    self.resize(settings["main_window"]["width"], settings["main_window"]["height"])
+                if "main_window" in settings:
+                    if "width" in settings["main_window"] and "height" in settings["main_window"]:
+                        self.resize(settings["main_window"]["width"], settings["main_window"]["height"])
+                    # elif "font" in settings["main_window"]:
+                        # font = QFont()
+                        # font.setFamily("Open Sans Regular")
+                        # font.setPointSize(8)
+                        # font.setBold(True)
+                        # font.setWeight(75)
+                        # font.setKerning(True)
+                        # font.setStyleStrategy(QFont.PreferAntialias)
+                        # self.setFont(font)
             except Exception as e:
                 print("JSON", e)
         # local vars
@@ -360,12 +371,12 @@ class Form(QMainWindow, Ui_MainWindow):
             print("JSON", e)
         if "backup" in settings and "backup_path" in settings["backup"]:
             if not db.make_backup(settings["backup"]["backup_path"]):
-                print("Filed to make database backup!")
+                print("Failed to make database backup!")
 
 
 def main():
     app = QApplication(sys.argv)
-    app.setWindowIcon(QIcon("icons\\notebook.svg"))
+    app.setWindowIcon(QIcon(path.join("icons", "notebook.svg")))
     form = Form()
     form.show()
     sys.exit(app.exec_())
