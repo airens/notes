@@ -5,6 +5,7 @@ import sys
 from PyQt5.QtCore import QRegExp
 from PyQt5.QtGui import QColor, QTextCharFormat, QFont, QSyntaxHighlighter
 
+
 def format(color, style=''):
     """Return a QTextCharFormat with the given attributes.
     """
@@ -35,7 +36,7 @@ STYLES = {
 }
 
 
-class PythonHighlighter (QSyntaxHighlighter):
+class PythonHighlighter(QSyntaxHighlighter):
     """Syntax highlighter for the Python language.
     """
     # Python keywords
@@ -79,11 +80,11 @@ class PythonHighlighter (QSyntaxHighlighter):
 
         # Keyword, operator, and brace rules
         rules += [(r'\b%s\b' % w, 0, STYLES['keyword'])
-            for w in PythonHighlighter.keywords]
+                  for w in PythonHighlighter.keywords]
         rules += [(r'%s' % o, 0, STYLES['operator'])
-            for o in PythonHighlighter.operators]
+                  for o in PythonHighlighter.operators]
         rules += [(r'%s' % b, 0, STYLES['brace'])
-            for b in PythonHighlighter.braces]
+                  for b in PythonHighlighter.braces]
 
         # All other rules
         rules += [
@@ -111,7 +112,7 @@ class PythonHighlighter (QSyntaxHighlighter):
 
         # Build a QRegExp for each pattern
         self.rules = [(QRegExp(pat), index, fmt)
-            for (pat, index, fmt) in rules]
+                      for (pat, index, fmt) in rules]
 
     def highlightBlock(self, text):
         """Apply syntax highlighting to the given block of text.

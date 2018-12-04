@@ -26,7 +26,7 @@ def qt_message_handler(mode, context, message):
     else:
         mode = 'DEBUG'
     print('qt_message_handler: line: %d, func: %s(), file: %s' % (
-          context.line, context.function, context.file))
+        context.line, context.function, context.file))
     print('  %s: %s\n' % (mode, message))
 
 
@@ -35,8 +35,8 @@ qDebug('MyApp')
 
 
 class Form(QMainWindow, Ui_MainWindow):
-    """Main app window class"""
-    def show_msg_box(self, mb_type):
+    @staticmethod
+    def show_msg_box(mb_type):
         msg_box = QMessageBox()
         if mb_type == "delete":
             msg_box.setWindowTitle("Delete")
@@ -67,6 +67,7 @@ class Form(QMainWindow, Ui_MainWindow):
             return msg_box.exec()
 
     def set_mode(self, mode):
+        self.lb_count.setText(f"Total notes: {str(db.get_notes_count())}")
         if "search" in mode:
             if self.btn_new_save.text() == "Save" and self.btn_new_save.isEnabled():
                 btn = self.show_msg_box("save")
@@ -112,7 +113,8 @@ class Form(QMainWindow, Ui_MainWindow):
                 self.btn_new_save.setText("New")
                 self.btn_new_save.setEnabled(True)
                 self.txt_main.setFocus()
-                self.statusbar.showMessage("New note |Ctrl-N|     Save note |Ctrl-S|     Return to search |Ctrl-F, Escape|")
+                self.statusbar.showMessage(
+                    "New note |Ctrl-N|     Save note |Ctrl-S|     Return to search |Ctrl-F, Escape|")
 
     def update_search(self):
         self.search_data.clear()
@@ -163,7 +165,7 @@ class Form(QMainWindow, Ui_MainWindow):
             for i, tag in enumerate(all_tags):
                 cb_tag = QCheckBox(self.grp_tags)
                 cb_tag.setText(f"#{tag}")
-                cb_tag.setObjectName(f"cb_tag{i+1}")
+                cb_tag.setObjectName(f"cb_tag{i + 1}")
                 cb_tag.setFocusPolicy(Qt.NoFocus)
                 cb_tag.clicked.connect(self.cb_clicked)
                 self.tags_layout.addWidget(cb_tag)
@@ -217,11 +219,13 @@ class Form(QMainWindow, Ui_MainWindow):
                             self.draw_tag_checkboxes()
                             self.update_search()
             func(*args)
+
         return f
 
-    def tr_item_changed(self, item):
-        item_id = item.data(Qt.UserRole+1)
-        item_type = item.data(Qt.UserRole+2)
+    @staticmethod
+    def tr_item_changed(item):
+        item_id = item.data(Qt.UserRole + 1)
+        item_type = item.data(Qt.UserRole + 2)
         item_text = item.text()
         if item_type == "title":
             db.update_note_title(item_id, item_text)
@@ -309,15 +313,6 @@ class Form(QMainWindow, Ui_MainWindow):
                 if "main_window" in settings:
                     if "width" in settings["main_window"] and "height" in settings["main_window"]:
                         self.resize(settings["main_window"]["width"], settings["main_window"]["height"])
-                    # elif "font" in settings["main_window"]:
-                        # font = QFont()
-                        # font.setFamily("Open Sans Regular")
-                        # font.setPointSize(8)
-                        # font.setBold(True)
-                        # font.setWeight(75)
-                        # font.setKerning(True)
-                        # font.setStyleStrategy(QFont.PreferAntialias)
-                        # self.setFont(font)
             except Exception as e:
                 print("JSON", e)
         # local vars
@@ -334,6 +329,8 @@ class Form(QMainWindow, Ui_MainWindow):
         self.tr_search.setModel(self.search_data)
         self.tr_search.setHeaderHidden(True)
         self.st_widget.setCurrentIndex(1)
+        self.lb_count = QLabel()
+        self.statusbar.addPermanentWidget(self.lb_count)
         # events
         # self.tr_search.clicked.connect(self.tr_clicked)
         self.tr_search.doubleClicked.connect(self.tr_double_clicked)
@@ -384,5 +381,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-

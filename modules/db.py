@@ -2,6 +2,7 @@ import shutil
 import sqlite3
 from time import time
 
+
 class Db:
     def __request(self, request, *args):
         if self.base:
@@ -20,8 +21,8 @@ class Db:
         self.__request("CREATE TABLE IF NOT EXISTS " +
                        "notes (id INTEGER PRIMARY KEY, title STRING, body STRING, last_apply REAL)")
         self.__request("CREATE TABLE IF NOT EXISTS " +
-                        "tags (note_id INT, tag STRING, PRIMARY KEY(note_id,tag)," +
-                        "FOREIGN KEY (note_id) REFERENCES notes(id))")
+                       "tags (note_id INT, tag STRING, PRIMARY KEY(note_id,tag)," +
+                       "FOREIGN KEY (note_id) REFERENCES notes(id))")
         self.__request("CREATE VIRTUAL TABLE IF NOT EXISTS fts USING fts5(id, title, body, last_apply)")
         # self.__request("DROP TRIGGER after_notes_insert")
         # self.__request("DROP TRIGGER after_notes_update")
@@ -86,6 +87,13 @@ class Db:
             """, ','.join(tags), len(tags))
         else:
             return self.get_all()
+
+    def get_notes_count(self):
+        res = self.__request("SELECT count(id) FROM notes")
+        if res and res[0]:
+            return res[0][0]
+        else:
+            return 0
 
     def insert_note(self, title, body):
         self.__request("INSERT INTO notes VALUES (?,?,?,?)", None, title, body, time())
@@ -153,7 +161,7 @@ class Db:
                   GROUP BY note_id
                 ) WHERE count=?
               ) AND fts MATCH ? ORDER BY rank;
-            """, ','.join(tags), len(tags),  f"{text}*")
+            """, ','.join(tags), len(tags), f"{text}*")
         else:
             return self.__request("SELECT * FROM fts WHERE fts MATCH ? ORDER BY rank", f"{text}*")
 
