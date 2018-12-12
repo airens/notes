@@ -70,6 +70,8 @@ class PythonHighlighter(QSyntaxHighlighter):
     def __init__(self, document):
         QSyntaxHighlighter.__init__(self, document)
 
+        self.active = True
+
         # Multi-line strings (expression, flag, style)
         # FIXME: The triple-quotes in these two lines will mess up the
         # syntax highlighting from this point onward
@@ -102,7 +104,7 @@ class PythonHighlighter(QSyntaxHighlighter):
             (r'\bclass\b\s*(\w+)', 1, STYLES['defclass']),
 
             # From '#' until a newline
-            # (r'#[^\n]*', 0, STYLES['comment']),
+            (r'#[^\n]*', 0, STYLES['comment']),
 
             # Numeric literals
             (r'\b[+-]?[0-9]+[lL]?\b', 0, STYLES['numbers']),
@@ -115,6 +117,8 @@ class PythonHighlighter(QSyntaxHighlighter):
                       for (pat, index, fmt) in rules]
 
     def highlightBlock(self, text):
+        if not self.active:
+            return
         """Apply syntax highlighting to the given block of text.
         """
         # Do other syntax formatting
