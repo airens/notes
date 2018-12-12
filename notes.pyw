@@ -102,6 +102,8 @@ class Form(QMainWindow, Ui_MainWindow):
                     self.txt_title.setText("")
                     self.txt_title.setFocus()
                 self.txt_main.setPlainText('\n' + '-' * 50 + '\n')
+                # cursor = QTextCursor(self.txt_main.document())
+                # cursor.insertHtml("<a href=\"http://www.google.com\" >Google</a>")
                 self.btn_new_save.setText("Save")
                 self.btn_new_save.setEnabled(False)
                 self.update_tag_checkboxes()
@@ -236,8 +238,9 @@ class Form(QMainWindow, Ui_MainWindow):
         self.title = txt
         self.tags = [tag for tag in re.findall("#(\\w+)", self.title)]
         self.update_tag_checkboxes()
+        self.tags = sorted(self.tags, key=lambda x: len(x), reverse=True)
         for tag in self.tags:
-            self.title = self.title.replace('#' + tag, "")
+            self.title = self.title.replace('#' + tag, '')
         self.title = self.title.strip()
         if self.mode == "search":
             self.update_search()
@@ -298,6 +301,7 @@ class Form(QMainWindow, Ui_MainWindow):
         note_tags = db.get_note_tags(self.cur_note_id)
         if all((note_id, note_title, note_body)):
             self.txt_title.setText(note_title + (' #' + ' #'.join(note_tags) if note_tags else ""))
+            self.hl.active = "python" in note_tags
             self.txt_main.setPlainText(note_body)
             self.tags = list(note_tags) if note_tags else []
             self.update_tag_checkboxes()
@@ -324,7 +328,9 @@ class Form(QMainWindow, Ui_MainWindow):
         self.cur_note_id = None
         # widgets init
         self.hl = PythonHighlighter(self.txt_main.document())
-        self.txt_main.setTabStopWidth(4)
+        metrics = QFontMetrics(self.txt_main.font())
+        self.txt_main.setTabStopWidth(4 * metrics.width(' '))
+        self.txt_main.setTextInteractionFlags(self.txt_main.textInteractionFlags() | Qt.LinksAccessibleByMouse)
         self.search_data = QStandardItemModel()
         self.tr_search.setModel(self.search_data)
         self.tr_search.setHeaderHidden(True)
@@ -334,7 +340,6 @@ class Form(QMainWindow, Ui_MainWindow):
         # events
         # self.tr_search.clicked.connect(self.tr_clicked)
         self.tr_search.doubleClicked.connect(self.tr_double_clicked)
-
         self.search_data.itemChanged.connect(self.tr_item_changed)
 
         self.tags_layout.setAlignment(Qt.AlignTop)
