@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'modules\ui.ui'
+# Form implementation generated from reading ui file 'ui.ui'
 #
 # Created by: PyQt5 UI code generator 5.11.3
 #
@@ -73,7 +73,14 @@ class Ui_MainWindow(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.txt_main.sizePolicy().hasHeightForWidth())
         self.txt_main.setSizePolicy(sizePolicy)
+        font = QtGui.QFont()
+        font.setFamily("Courier")
+        font.setPointSize(12)
+        font.setKerning(False)
+        self.txt_main.setFont(font)
         self.txt_main.setAutoFillBackground(False)
+        self.txt_main.setStyleSheet("")
+        self.txt_main.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
         self.txt_main.setPlainText("")
         self.txt_main.setObjectName("txt_main")
         self.horizontalLayout.addWidget(self.txt_main)
