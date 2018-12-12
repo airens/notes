@@ -163,7 +163,7 @@ class Db:
               ) AND fts MATCH ? ORDER BY rank;
             """, ','.join(tags), len(tags), f"{text}*")
         else:
-            return self.__request("SELECT * FROM fts WHERE fts MATCH ? ORDER BY rank", f"{text}*")
+            return self.__request("SELECT id,title,body FROM fts WHERE fts MATCH ? ORDER BY rank", f"{text}*")
 
     def drop_table(self, table):
         self.__request(f"DELETE FROM {table}")

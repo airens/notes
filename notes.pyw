@@ -128,13 +128,19 @@ class Form(QMainWindow, Ui_MainWindow):
         else:
             search = db.fts_note(self.title, self.tags)
         if search:
-            for res in search:
-                title = QStandardItem(res[1])
-                title.setData(res[0], Qt.UserRole + 1)  # id
+            all_tags = db.get_all_tags()
+            for note_id, note_title, note_body in search:
+                note_tags = db.get_note_tags(note_id)
+                if note_tags and all_tags:
+                    note_tags = [tag for tag in reversed(all_tags) if tag in note_tags]  # sort note tags by count
+                    title = QStandardItem(note_title + ' #' + ' #'.join(note_tags))
+                else:
+                    title = QStandardItem(note_title)
+                title.setData(note_id, Qt.UserRole + 1)  # id
                 title.setData("title", Qt.UserRole + 2)  # id
                 # title.setEditable(False)
-                body = QStandardItem(res[2])
-                body.setData(res[0], Qt.UserRole + 1)  # id
+                body = QStandardItem(note_body)
+                body.setData(note_id, Qt.UserRole + 1)  # id
                 body.setData("body", Qt.UserRole + 2)  # id
                 title.appendRow(body)
                 self.search_data.appendRow(title)
