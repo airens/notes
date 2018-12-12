@@ -66,15 +66,18 @@ class Form(QMainWindow, Ui_MainWindow):
             msg_box.setStandardButtons(QMessageBox.Ok)
             return msg_box.exec()
 
+    def ask_to_save(self):
+        if self.btn_new_save.text() == "Save" and self.btn_new_save.isEnabled():
+            btn = self.show_msg_box("save")
+            if btn == QMessageBox.Save:
+                self.btn_new_save_clicked()
+            elif btn == QMessageBox.Cancel:
+                return
+
     def set_mode(self, mode):
         self.lb_count.setText(f"Total notes: {str(db.get_notes_count())}")
         if "search" in mode:
-            if self.btn_new_save.text() == "Save" and self.btn_new_save.isEnabled():
-                btn = self.show_msg_box("save")
-                if btn == QMessageBox.Save:
-                    self.btn_new_save_clicked()
-                elif btn == QMessageBox.Cancel:
-                    return
+            self.ask_to_save()
             self.mode = "search"
             self.st_widget.setCurrentIndex(1)
             self.setWindowTitle("Notes: search")
@@ -359,7 +362,8 @@ class Form(QMainWindow, Ui_MainWindow):
         self.draw_tag_checkboxes()
         self.update_search()
 
-    def __del__(self):
+    def closeEvent(self, *args, **kwargs):
+        self.ask_to_save()
         settings = {"main_window": {}}
         try:
             settings = json.load(open("settings.json"))
@@ -374,6 +378,8 @@ class Form(QMainWindow, Ui_MainWindow):
         if "backup" in settings and "backup_path" in settings["backup"]:
             if not db.make_backup(settings["backup"]["backup_path"]):
                 print("Failed to make database backup!")
+
+    # def __del__(self):
 
 
 def main():
