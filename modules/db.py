@@ -75,16 +75,17 @@ class Db:
 
     def get_all_notes(self, tags):
         if tags:
-            return self.__request("""
+            tags_str = "'" + "','".join(tags) + "'"
+            return self.__request(f"""
               SELECT id,title,body FROM notes WHERE id IN (
                 SELECT note_id FROM (
                   SELECT note_id, COUNT(tag) AS 'count'
                   FROM tags
-                  WHERE tag IN (?)
+                  WHERE tag IN ({tags_str})
                   GROUP BY note_id
                 ) WHERE count=?
               ) ORDER BY last_apply DESC
-            """, ','.join(tags), len(tags))
+            """, len(tags))
         else:
             return self.get_all()
 
@@ -152,16 +153,17 @@ class Db:
             # 1. select rows from 'tags' table for every couple id-tag
             # 2. count how many pairs were found for every id
             # 3. if pairs count == len(tags), get these id's and filter FTS result using them
-            return self.__request("""
+            tags_str = "'" + "','".join(tags) + "'"
+            return self.__request(f"""
               SELECT id,title,body FROM fts WHERE id IN (
                 SELECT note_id FROM (
                   SELECT note_id, COUNT(tag) AS 'count'
                   FROM tags
-                  WHERE tag IN (?)
+                  WHERE tag IN ({tags_str})
                   GROUP BY note_id
                 ) WHERE count=?
               ) AND fts MATCH ? ORDER BY rank;
-            """, ','.join(tags), len(tags), f"{text}*")
+            """, len(tags), f"{text}*")
         else:
             return self.__request("SELECT id,title,body FROM fts WHERE fts MATCH ? ORDER BY rank", f"{text}*")
 

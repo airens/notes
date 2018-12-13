@@ -123,16 +123,16 @@ class Form(QMainWindow, Ui_MainWindow):
 
     def update_search(self):
         self.search_data.clear()
+        return
         if not len(self.title):
             search = db.get_all_notes(self.tags)
         else:
             search = db.fts_note(self.title, self.tags)
         if search:
-            all_tags = db.get_all_tags()
             for note_id, note_title, note_body in search:
                 note_tags = db.get_note_tags(note_id)
-                if note_tags and all_tags:
-                    note_tags = [tag for tag in reversed(all_tags) if tag in note_tags]  # sort note tags by count
+                if note_tags and self.all_tags:
+                    note_tags = [tag for tag in reversed(self.all_tags) if tag in note_tags]  # sort note tags by count
                     title = QStandardItem(note_title + ' #' + ' #'.join(note_tags))
                 else:
                     title = QStandardItem(note_title)
@@ -171,9 +171,9 @@ class Form(QMainWindow, Ui_MainWindow):
     def draw_tag_checkboxes(self):
         for i in reversed(range(self.tags_layout.count())):
             self.tags_layout.itemAt(i).widget().setParent(None)
-        all_tags = db.get_all_tags()
-        if all_tags:
-            for i, tag in enumerate(all_tags):
+        self.all_tags = db.get_all_tags()
+        if self.all_tags:
+            for i, tag in enumerate(self.all_tags):
                 cb_tag = QCheckBox(self.grp_tags)
                 cb_tag.setText(f"#{tag}")
                 cb_tag.setObjectName(f"cb_tag{i + 1}")
@@ -205,7 +205,7 @@ class Form(QMainWindow, Ui_MainWindow):
             elif self.txt_title.hasFocus():
                 if key in (Qt.Key_Enter, Qt.Key_Return) and (modifiers & Qt.ControlModifier):
                     self.set_mode("new_title")
-                elif key == Qt.Key_Down or key in (Qt.Key_Enter, Qt.Key_Return):
+                elif key == Qt.Key_Down:
                     if self.mode == "search" and self.search_data.rowCount():
                         self.tr_search.setCurrentIndex(self.search_data.index(0, 0))
                         self.tr_search.setFocus()
@@ -246,8 +246,12 @@ class Form(QMainWindow, Ui_MainWindow):
     def txt_title_text_changed(self, txt):
         self.title = txt
         self.tags = [tag for tag in re.findall("#(\\w+)", self.title)]
+        tags_count = txt.count('#')
+        if self.tags_count_prev != tags_count:
+            self.update_completer(tags_count)
+            self.tags_count_prev = tags_count
         self.update_tag_checkboxes()
-        self.tags = sorted(self.tags, key=lambda x: len(x), reverse=True)
+        # self.tags = sorted(self.tags, key=lambda x: len(x), reverse=True)
         for tag in self.tags:
             self.title = self.title.replace('#' + tag, '')
         self.title = self.title.strip()
@@ -316,6 +320,16 @@ class Form(QMainWindow, Ui_MainWindow):
             self.update_tag_checkboxes()
             self.set_mode("edit")
 
+    def update_completer(self, tags_count):
+        # firstly, combine already entered tags
+        ready = ' '.join([f"#{tag}" for tag in self.tags[:tags_count-1]])
+        lst = [f"#{tag} " if not self.tags else f"{ready} #{tag} " for tag in self.all_tags if tag not in self.tags]
+        # lst = [f"#{tag} " for tag in self.all_tags]
+        completer = QCompleter(lst)
+        # completer.setCompletionPrefix(ready)
+        # completer.setCompletionMode(QCompleter.InlineCompletion)
+        self.txt_title.setCompleter(completer)
+
     def __init__(self):
         # UI init
         super().__init__()
@@ -333,8 +347,10 @@ class Form(QMainWindow, Ui_MainWindow):
         self.body = ""
         self.search = ""
         self.tags = []
+        self.all_tags = []
         self.mode = "search"
         self.cur_note_id = None
+        self.tags_count_prev = 0
         # widgets init
         self.hl = PythonHighlighter(self.txt_main.document())
         metrics = QFontMetrics(self.txt_main.font())
