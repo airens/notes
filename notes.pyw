@@ -123,7 +123,6 @@ class Form(QMainWindow, Ui_MainWindow):
 
     def update_search(self):
         self.search_data.clear()
-        return
         if not len(self.title):
             search = db.get_all_notes(self.tags)
         else:
@@ -246,10 +245,6 @@ class Form(QMainWindow, Ui_MainWindow):
     def txt_title_text_changed(self, txt):
         self.title = txt
         self.tags = [tag for tag in re.findall("#(\\w+)", self.title)]
-        tags_count = txt.count('#')
-        if self.tags_count_prev != tags_count:
-            self.update_completer(tags_count)
-            self.tags_count_prev = tags_count
         self.update_tag_checkboxes()
         # self.tags = sorted(self.tags, key=lambda x: len(x), reverse=True)
         for tag in self.tags:
@@ -273,7 +268,7 @@ class Form(QMainWindow, Ui_MainWindow):
             #     return
             if self.mode == "new":
                 self.cur_note_id = db.insert_note(self.title, self.body)
-                self.btn_new_save.setText("New")
+                self.set_mode("edit")
             elif self.cur_note_id:
                 db.update_note(self.cur_note_id, self.title, self.body)
                 self.btn_new_save.setText("New")
@@ -319,16 +314,6 @@ class Form(QMainWindow, Ui_MainWindow):
             self.tags = list(note_tags) if note_tags else []
             self.update_tag_checkboxes()
             self.set_mode("edit")
-
-    def update_completer(self, tags_count):
-        # firstly, combine already entered tags
-        ready = ' '.join([f"#{tag}" for tag in self.tags[:tags_count-1]])
-        lst = [f"#{tag} " if not self.tags else f"{ready} #{tag} " for tag in self.all_tags if tag not in self.tags]
-        # lst = [f"#{tag} " for tag in self.all_tags]
-        completer = QCompleter(lst)
-        # completer.setCompletionPrefix(ready)
-        # completer.setCompletionMode(QCompleter.InlineCompletion)
-        self.txt_title.setCompleter(completer)
 
     def __init__(self):
         # UI init
