@@ -74,6 +74,13 @@ class Form(QMainWindow, Ui_MainWindow):
             elif btn == QMessageBox.Cancel:
                 return
 
+    def replace_splitters(self, text):
+        lines = text.split('\n')
+        for i, line in enumerate(lines):
+            if re.search(r"^-+$", line):
+                lines[i] = '-' * self.splitter_width
+        return '\n'.join(lines)
+
     def set_mode(self, mode):
         self.lb_count.setText(f"Total notes: {str(db.get_notes_count())}")
         if "search" in mode:
@@ -104,7 +111,7 @@ class Form(QMainWindow, Ui_MainWindow):
                     self.tags = []
                     self.txt_title.setText("")
                     self.txt_title.setFocus()
-                self.txt_main.setPlainText('\n' + '-' * 50 + '\n')
+                self.txt_main.setPlainText('\n' + '-' * self.splitter_width + '\n')
                 # cursor = QTextCursor(self.txt_main.document())
                 # cursor.insertHtml("<a href=\"http://www.google.com\" >Google</a>")
                 self.btn_new_save.setText("Save")
@@ -117,6 +124,7 @@ class Form(QMainWindow, Ui_MainWindow):
                 self.setWindowTitle("Notes: edit")
                 self.btn_new_save.setText("New")
                 self.btn_new_save.setEnabled(True)
+                self.txt_main.setPlainText(self.replace_splitters(self.txt_main.toPlainText()))
                 self.txt_main.setFocus()
                 self.statusbar.showMessage(
                     "New note |Ctrl-N|     Save note |Ctrl-S|     Return to search |Ctrl-F, Escape|")
@@ -325,6 +333,8 @@ class Form(QMainWindow, Ui_MainWindow):
                 if "main_window" in settings:
                     if "width" in settings["main_window"] and "height" in settings["main_window"]:
                         self.resize(settings["main_window"]["width"], settings["main_window"]["height"])
+                if "misc" in settings:
+                    self.splitter_width = settings.get("misc", {}).get("splitter_width", 80)
             except Exception as e:
                 print("JSON", e)
         # local vars
@@ -338,9 +348,10 @@ class Form(QMainWindow, Ui_MainWindow):
         self.tags_count_prev = 0
         # widgets init
         self.hl = PythonHighlighter(self.txt_main.document())
-        metrics = QFontMetrics(self.txt_main.font())
-        self.txt_main.setTabStopWidth(4 * metrics.width(' '))
+        sym_width = QFontMetrics(self.txt_main.font()).width(' ')
+        self.txt_main.setTabStopWidth(4 * sym_width)
         self.txt_main.setTextInteractionFlags(self.txt_main.textInteractionFlags() | Qt.LinksAccessibleByMouse)
+        self.txt_main.setMinimumWidth(int(self.splitter_width * sym_width + 0.5))
         self.search_data = QStandardItemModel()
         self.tr_search.setModel(self.search_data)
         self.tr_search.setHeaderHidden(True)

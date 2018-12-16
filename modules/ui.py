@@ -80,6 +80,7 @@ class Ui_MainWindow(object):
         self.txt_main.setFont(font)
         self.txt_main.setAutoFillBackground(False)
         self.txt_main.setStyleSheet("")
+        self.txt_main.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.txt_main.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
         self.txt_main.setPlainText("")
         self.txt_main.setObjectName("txt_main")
