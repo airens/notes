@@ -7,6 +7,8 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import re
 from os import path
+from datetime import datetime as dt
+import time
 
 from modules.syntax import PythonHighlighter
 
@@ -71,8 +73,11 @@ class Form(QMainWindow, Ui_MainWindow):
             btn = self.show_msg_box("save")
             if btn == QMessageBox.Save:
                 self.btn_new_save_clicked()
+                return 'save'
             elif btn == QMessageBox.Cancel:
-                return
+                return 'cancel'
+            else:
+                return 'discard'
 
     def replace_splitters(self, text):
         lines = text.split('\n')
@@ -82,9 +87,10 @@ class Form(QMainWindow, Ui_MainWindow):
         return '\n'.join(lines)
 
     def set_mode(self, mode):
-        self.lb_count.setText(f"Total notes: {str(db.get_notes_count())}")
+        self.lb_count.setText(f"Last backup: {self.last_backup} Total notes: {str(db.get_notes_count())}")
         if "search" in mode:
-            self.ask_to_save()
+            if self.ask_to_save() == 'cancel':
+                return
             self.mode = "search"
             self.st_widget.setCurrentIndex(1)
             self.setWindowTitle("Notes: search")
@@ -335,8 +341,10 @@ class Form(QMainWindow, Ui_MainWindow):
                         self.resize(settings["main_window"]["width"], settings["main_window"]["height"])
                 if "misc" in settings:
                     self.splitter_width = settings.get("misc", {}).get("splitter_width", 80)
+                self.backup_path = settings.get('backup', {}).get('backup_path')
             except Exception as e:
                 print("JSON", e)
+                raise e
         # local vars
         self.title = ""
         self.body = ""
@@ -346,6 +354,10 @@ class Form(QMainWindow, Ui_MainWindow):
         self.mode = "search"
         self.cur_note_id = None
         self.tags_count_prev = 0
+        if path.exists(path.join(self.backup_path, db.fname)):
+            self.last_backup = time.ctime(path.getmtime(self.backup_path))
+        else:
+            self.last_backup = "---"
         # widgets init
         self.hl = PythonHighlighter(self.txt_main.document())
         sym_width = QFontMetrics(self.txt_main.font()).width(' ')
@@ -380,8 +392,10 @@ class Form(QMainWindow, Ui_MainWindow):
         self.draw_tag_checkboxes()
         self.update_search()
 
-    def closeEvent(self, *args, **kwargs):
-        self.ask_to_save()
+    def closeEvent(self, event):
+        if self.ask_to_save() == 'cancel':
+            event.ignore()
+            return
         settings = {"main_window": {}}
         try:
             settings = json.load(open("settings.json"))
@@ -393,8 +407,8 @@ class Form(QMainWindow, Ui_MainWindow):
             json.dump(settings, open("settings.json", 'w'))
         except Exception as e:
             print("JSON", e)
-        if "backup" in settings and "backup_path" in settings["backup"]:
-            if not db.make_backup(settings["backup"]["backup_path"]):
+        if self.backup_path:
+            if not db.make_backup(self.backup_path):
                 print("Failed to make database backup!")
 
     # def __del__(self):
