@@ -323,7 +323,7 @@ class Form(QMainWindow, Ui_MainWindow):
         note_tags = db.get_note_tags(self.cur_note_id)
         if all((note_id, note_title, note_body)):
             self.txt_title.setText(note_title + (' #' + ' #'.join(note_tags) if note_tags else ""))
-            self.hl.active = "python" in note_tags
+            self.hl.active = "python" in note_tags if note_tags else False
             self.txt_main.setPlainText(note_body)
             self.tags = list(note_tags) if note_tags else []
             self.update_tag_checkboxes()
