@@ -9,13 +9,15 @@ This is a simple programmer's notes application.
 5. Quick keyboard shortcuts
 6. Automatic backup of database to selected folder after every runtime
 ## Settings (settings.json):
-    {
-	    "main_window": {
-		    "width": 639, "height": 472 // initial with and height of main window
-	    },
-	    "backup": {"backup_path": "/home/user/Dropbox/backup"}, // folder to save DB backups
-	    "misc": {"splitter_width": 70} // with of splitter line, symbols
-    }
+```json
+{
+    "main_window": {
+	    "width": 639, "height": 472 // initial with and height of main window
+    },
+    "backup": {"backup_path": "/home/user/Dropbox/backup"}, // folder to save DB backups
+    "misc": {"splitter_width": 70} // with of splitter line, symbols
+}
+```
 ## Experience I've got:
 * PyQT framework
 * SQLite databases
