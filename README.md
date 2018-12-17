@@ -12,10 +12,10 @@ This is a simple programmer's notes application.
 ```json
 {
     "main_window": {
-	    "width": 639, "height": 472 // initial with and height of main window
+	    "width": 639, "height": 472
     },
-    "backup": {"backup_path": "/home/user/Dropbox/backup"}, // folder to save DB backups
-    "misc": {"splitter_width": 70} // with of splitter line, symbols
+    "backup": {"backup_path": "/home/user/Dropbox/backup"},
+    "misc": {"splitter_width": 70}
 }
 ```
 ## Experience I've got:
