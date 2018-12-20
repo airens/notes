@@ -7,13 +7,12 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import re
 from os import path
-from datetime import datetime as dt
 import time
 
-from modules.syntax import PythonHighlighter
 
 from modules.db import db
 from modules.ui import Ui_MainWindow
+from modules.md import Md
 
 
 def qt_message_handler(mode, context, message):
@@ -79,13 +78,6 @@ class Form(QMainWindow, Ui_MainWindow):
             else:
                 return 'discard'
 
-    def replace_splitters(self, text):
-        lines = text.split('\n')
-        for i, line in enumerate(lines):
-            if re.search(r"^-+$", line):
-                lines[i] = '-' * self.splitter_width
-        return '\n'.join(lines)
-
     def set_mode(self, mode):
         self.lb_count.setText(f"Last backup: {self.last_backup} Total notes: {str(db.get_notes_count())}")
         if "search" in mode:
@@ -94,6 +86,7 @@ class Form(QMainWindow, Ui_MainWindow):
             self.mode = "search"
             self.st_widget.setCurrentIndex(1)
             self.setWindowTitle("Notes: search")
+            self.txt_title.setEnabled(True)
             if mode == "search_title":
                 self.txt_title.setText(self.search)
                 self.tr_search.setFocus()
@@ -111,29 +104,43 @@ class Form(QMainWindow, Ui_MainWindow):
                 self.mode = "new"
                 self.st_widget.setCurrentIndex(0)
                 self.setWindowTitle("Notes: new")
+                self.txt_title.setEnabled(True)
                 if mode == "new_title":
                     self.txt_main.setFocus()
                 else:
                     self.tags = []
                     self.txt_title.setText("")
                     self.txt_title.setFocus()
-                self.txt_main.setPlainText('\n' + '-' * self.splitter_width + '\n')
-                # cursor = QTextCursor(self.txt_main.document())
-                # cursor.insertHtml("<a href=\"http://www.google.com\" >Google</a>")
+                text = ""
+                if "python" in self.tags:
+                    text += "```python\n\n```"
+                if "linux" in self.tags:
+                    text = "```bash\n\n```"
+                self.txt_main.setPlainText(text + '\n' + '*' * 3 + '\n')
                 self.btn_new_save.setText("Save")
-                self.btn_new_save.setEnabled(False)
+                self.btn_new_save.setEnabled(True)
                 self.update_tag_checkboxes()
                 self.statusbar.showMessage("Save note |Ctrl-S|     Return to search |Ctrl-F, Escape|")
             elif "edit" in mode:
                 self.mode = "edit"
                 self.st_widget.setCurrentIndex(0)
                 self.setWindowTitle("Notes: edit")
+                self.txt_title.setEnabled(True)
                 self.btn_new_save.setText("New")
-                self.btn_new_save.setEnabled(True)
-                self.txt_main.setPlainText(self.replace_splitters(self.txt_main.toPlainText()))
+                self.btn_new_save.setEnabled(False)
                 self.txt_main.setFocus()
                 self.statusbar.showMessage(
                     "New note |Ctrl-N|     Save note |Ctrl-S|     Return to search |Ctrl-F, Escape|")
+            elif "view" in mode:
+                self.mode = "view"
+                self.st_widget.setCurrentIndex(2)
+                self.setWindowTitle("Notes: view")
+                self.txt_title.setEnabled(False)
+                self.btn_new_save.setText("New")
+                self.btn_new_save.setEnabled(True)
+                self.tb_view.setFocus()
+                self.statusbar.showMessage(
+                    "New note |Ctrl-N|     Edit note |Ctrl-E, Enter|     Return to search |Ctrl-F, Escape|")
 
     def update_search(self):
         self.search_data.clear()
@@ -176,9 +183,12 @@ class Form(QMainWindow, Ui_MainWindow):
             else:
                 self.btn_new_save.setText("New")
 
-    def update_tag_checkboxes(self):
+            self.btn_new_save.setEnabled(True)
+
+    def update_tag_checkboxes(self, enabled=True):
         for i in range(self.tags_layout.count()):
             cb_tag = self.tags_layout.itemAt(i).widget()
+            cb_tag.setEnabled(enabled)
             cb_tag.setChecked(True if cb_tag.text()[1:] in self.tags else False)
 
     def draw_tag_checkboxes(self):
@@ -214,6 +224,9 @@ class Form(QMainWindow, Ui_MainWindow):
             elif self.btn_search.isEnabled() and key == Qt.Key_F \
                     and (modifiers & Qt.ControlModifier):
                 self.btn_search_clicked()
+            elif self.mode == "view":
+                if key in (Qt.Key_Enter, Qt.Key_Return) or key == Qt.Key_E and (modifiers & Qt.ControlModifier):
+                    self.tb_edit()
             # txt_title
             elif self.txt_title.hasFocus():
                 if key in (Qt.Key_Enter, Qt.Key_Return) and (modifiers & Qt.ControlModifier):
@@ -323,7 +336,27 @@ class Form(QMainWindow, Ui_MainWindow):
         note_tags = db.get_note_tags(self.cur_note_id)
         if all((note_id, note_title, note_body)):
             self.txt_title.setText(note_title + (' #' + ' #'.join(note_tags) if note_tags else ""))
-            self.hl.active = "python" in note_tags if note_tags else False
+            self.tb_view.setHtml(self.markdown.render_html(f"# {self.txt_title.text()}\n{note_body}"))
+            self.tags = list(note_tags) if note_tags else []
+            self.update_tag_checkboxes(False)
+            self.set_mode("view")
+
+    def tb_view_menu_requested(self, pt):
+        menu = QMenu(self)
+        action_edit = QAction("Edit note")
+        action_edit.triggered.connect(self.tb_edit)
+        menu.addAction(action_edit)
+        menu.exec(self.tb_view.mapToGlobal(pt))
+
+    def tb_edit(self):
+        self.search = self.txt_title.text()
+        note = db.get_note(self.cur_note_id)
+        if not note:
+            return
+        note_id, note_title, note_body = note
+        note_tags = db.get_note_tags(self.cur_note_id)
+        if all((note_id, note_title, note_body)):
+            self.txt_title.setText(note_title + (' #' + ' #'.join(note_tags) if note_tags else ""))
             self.txt_main.setPlainText(note_body)
             self.tags = list(note_tags) if note_tags else []
             self.update_tag_checkboxes()
@@ -339,8 +372,7 @@ class Form(QMainWindow, Ui_MainWindow):
                 if "main_window" in settings:
                     if "width" in settings["main_window"] and "height" in settings["main_window"]:
                         self.resize(settings["main_window"]["width"], settings["main_window"]["height"])
-                if "misc" in settings:
-                    self.splitter_width = settings.get("misc", {}).get("splitter_width", 80)
+                self.markdown = Md("main.css", settings.get("misc", {}).get("pygmentize_css", "default"))
                 self.backup_path = settings.get('backup', {}).get('backup_path')
             except Exception as e:
                 print("JSON", e)
@@ -359,17 +391,18 @@ class Form(QMainWindow, Ui_MainWindow):
         else:
             self.last_backup = "---"
         # widgets init
-        self.hl = PythonHighlighter(self.txt_main.document())
         sym_width = QFontMetrics(self.txt_main.font()).width(' ')
         self.txt_main.setTabStopWidth(4 * sym_width)
         self.txt_main.setTextInteractionFlags(self.txt_main.textInteractionFlags() | Qt.LinksAccessibleByMouse)
-        self.txt_main.setMinimumWidth(int(self.splitter_width * sym_width + 0.5))
+        # self.txt_main.setMinimumWidth(int(self.splitter_width * sym_width + 0.5))
         self.search_data = QStandardItemModel()
         self.tr_search.setModel(self.search_data)
         self.tr_search.setHeaderHidden(True)
         self.st_widget.setCurrentIndex(1)
         self.lb_count = QLabel()
         self.statusbar.addPermanentWidget(self.lb_count)
+        self.tb_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tb_view.customContextMenuRequested.connect(self.tb_view_menu_requested)
         # events
         # self.tr_search.clicked.connect(self.tr_clicked)
         self.tr_search.doubleClicked.connect(self.tr_double_clicked)
@@ -387,6 +420,7 @@ class Form(QMainWindow, Ui_MainWindow):
         self.tr_search.keyPressEvent = self.key_pressed(self.tr_search.keyPressEvent)
         self.txt_title.keyPressEvent = self.key_pressed(self.txt_title.keyPressEvent)
         self.txt_main.keyPressEvent = self.key_pressed(self.txt_main.keyPressEvent)
+        self.tb_view.keyPressEvent = self.key_pressed(self.tb_view.keyPressEvent)
 
         self.set_mode("search")
         self.draw_tag_checkboxes()

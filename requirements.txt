@@ -1,4 +1,7 @@
+beautifulsoup4==4.6.3
 Click==7.0
+Markdown==3.0.1
+Pygments==2.3.1
 PyQt5==5.11.3
 PyQt5-sip==4.19.13
 pyqt5-tools==5.11.2.1.3

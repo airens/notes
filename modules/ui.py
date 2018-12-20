@@ -95,6 +95,15 @@ class Ui_MainWindow(object):
         self.tr_search.setObjectName("tr_search")
         self.horizontalLayout_2.addWidget(self.tr_search)
         self.st_widget.addWidget(self.search)
+        self.view = QtWidgets.QWidget()
+        self.view.setObjectName("view")
+        self.horizontalLayout_5 = QtWidgets.QHBoxLayout(self.view)
+        self.horizontalLayout_5.setObjectName("horizontalLayout_5")
+        self.tb_view = QtWidgets.QTextBrowser(self.view)
+        self.tb_view.setOpenExternalLinks(True)
+        self.tb_view.setObjectName("tb_view")
+        self.horizontalLayout_5.addWidget(self.tb_view)
+        self.st_widget.addWidget(self.view)
         self.gridLayout.addWidget(self.st_widget, 1, 0, 2, 1)
         self.grp_tags = QtWidgets.QGroupBox(self.centralwidget)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred)
@@ -132,7 +141,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        self.st_widget.setCurrentIndex(0)
+        self.st_widget.setCurrentIndex(2)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
