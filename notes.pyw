@@ -147,10 +147,9 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
                 self.btn_new_save.setText("New")
                 self.btn_new_save.setEnabled(True)
                 if all((note_id, note_title, note_body)):
-                    if note_tags:
-                        self.txt_title.setText(note_title + (' #' + ' #'.join(note_tags) if note_tags else ""))
-                    self.tb_view.setHtml(self.markdown.render_html(f"# {self.txt_title.text()}\n{note_body}"))
-                self.tb_view.setFocus()
+                    self.txt_title.setText(note_title + (' #' + ' #'.join(note_tags) if note_tags else ""))
+                    self.web_view.setHtml(self.markdown.render_html(f"## {self.txt_title.text()}\n***\n{note_body}"))
+                self.web_view.setFocus()
                 self.statusbar.showMessage(
                     "New note |Ctrl-N|     Edit note |Ctrl-E, Enter|     Return to search |Ctrl-F, Escape|")
             self.draw_tag_checkboxes(False if mode is "view" else True)
@@ -217,13 +216,15 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         # UI init
         super().__init__()
         self.setupUi(self)
+        self.dir = path.dirname(__file__)
         with open("settings.json") as file:
             try:
                 settings = json.load(file)
                 if "main_window" in settings:
                     if "width" in settings["main_window"] and "height" in settings["main_window"]:
                         self.resize(settings["main_window"]["width"], settings["main_window"]["height"])
-                self.markdown = Md("main.css", settings.get("misc", {}).get("pygmentize_css", "default"))
+                css = settings.get("misc", {}).get("css", [])
+                self.markdown = Md(*css)
                 self.backup_path = settings.get('backup', {}).get('backup_path')
             except Exception as e:
                 print("JSON", e)
@@ -252,8 +253,8 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         self.st_widget.setCurrentIndex(1)
         self.lb_count = QLabel()
         self.statusbar.addPermanentWidget(self.lb_count)
-        self.tb_view.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.tb_view.customContextMenuRequested.connect(self.tb_view_menu_requested)
+        self.web_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.web_view.customContextMenuRequested.connect(self.tb_view_menu_requested)
         # events
         # self.tr_search.clicked.connect(self.tr_clicked)
         self.tr_search.doubleClicked.connect(self.tr_double_clicked)
@@ -271,11 +272,12 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         self.tr_search.keyPressEvent = self.key_pressed(self.tr_search.keyPressEvent)
         self.txt_title.keyPressEvent = self.key_pressed(self.txt_title.keyPressEvent)
         self.txt_main.keyPressEvent = self.key_pressed(self.txt_main.keyPressEvent)
-        self.tb_view.keyPressEvent = self.key_pressed(self.tb_view.keyPressEvent)
+        self.web_view.keyPressEvent = self.key_pressed(self.web_view.keyPressEvent)
 
         self.set_mode("search")
         self.draw_tag_checkboxes()
         self.update_search()
+        self.web_view.setHtml(self.markdown.render_html(""))  # just to initialise
 
     def closeEvent(self, event):
         if self.ask_to_save() == 'cancel':

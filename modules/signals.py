@@ -96,11 +96,13 @@ class Signals:
         elif self.btn_new_save.text() == "Save":
             if self.mode == "new":  # makin' new note
                 self.cur_note_id = db.insert_note(self.title, self.body)
+                db.set_note_tags(self.cur_note_id, self.tags)
                 self.set_mode("edit")
             elif self.cur_note_id:  # edited existed note
                 db.update_note(self.cur_note_id, self.title, self.body)
+                db.set_note_tags(self.cur_note_id, self.tags)
                 self.set_mode("view")
-            db.set_note_tags(self.cur_note_id, self.tags)
+
 
     def btn_search_clicked(self):
         self.set_mode("search")
@@ -135,7 +137,7 @@ class Signals:
         action_edit = QAction("Edit note")
         action_edit.triggered.connect(self.tb_action_edit_triggered)
         menu.addAction(action_edit)
-        menu.exec(self.tb_view.mapToGlobal(pt))
+        menu.exec(self.web_view.mapToGlobal(pt))
 
     def tb_action_edit_triggered(self):
         self.set_mode("edit")

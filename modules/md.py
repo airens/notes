@@ -9,7 +9,7 @@ class Md:
             <head>
                 <meta charset="utf-8">
                 <style>
-                    {css}           
+                    {css}
                 </style>
             </head>
             <body>
@@ -36,12 +36,14 @@ class Md:
 
     @staticmethod
     def _clean_up(html):
+        # return html
         return html.replace("&amp;lt", "&lt").replace("&amp;gt", "&gt")
 
     def render_html(self, text):
-        body = markdown.markdown(text=text, extensions=["codehilite", "nl2br", "tables", "fenced_code"],
+        body = markdown.markdown(text=text, extensions=["codehilite", "nl2br", "tables", "fenced_code", "sane_lists"],
                                  extension_configs=self.extension_configs)
-        # with open("test.html", 'w') as file:
-        #     file.write(body)
-        return self._clean_up(self.template.format(css=self.css, body=body))
+        html = self._clean_up(self.template.format(css=self.css, body=body))
+        # with open("test.html", 'w', encoding="utf-8") as file:
+        #     file.write(html)
+        return html
 

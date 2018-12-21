@@ -6,7 +6,7 @@
 #
 # WARNING! All changes made in this file will be lost!
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets, QtWebEngineWidgets
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -99,10 +99,11 @@ class Ui_MainWindow(object):
         self.view.setObjectName("view")
         self.horizontalLayout_5 = QtWidgets.QHBoxLayout(self.view)
         self.horizontalLayout_5.setObjectName("horizontalLayout_5")
-        self.tb_view = QtWidgets.QTextBrowser(self.view)
-        self.tb_view.setOpenExternalLinks(True)
-        self.tb_view.setObjectName("tb_view")
-        self.horizontalLayout_5.addWidget(self.tb_view)
+        # self.tb_view = QtWidgets.QTextBrowser(self.view)
+        self.web_view = QtWebEngineWidgets.QWebEngineView(self.view)
+        # self.tb_view.setOpenExternalLinks(True)
+        self.web_view.setObjectName("tb_view")
+        self.horizontalLayout_5.addWidget(self.web_view)
         self.st_widget.addWidget(self.view)
         self.gridLayout.addWidget(self.st_widget, 1, 0, 2, 1)
         self.grp_tags = QtWidgets.QGroupBox(self.centralwidget)
