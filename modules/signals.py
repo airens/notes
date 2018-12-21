@@ -41,8 +41,9 @@ class Signals:
                     elif self.mode != "search":
                         self.txt_main.setFocus()
             # txt_main
-            elif self.txt_main.hasFocus() and key == Qt.Key_Up and (modifiers & Qt.ControlModifier):
-                self.txt_title.setFocus()
+            elif self.txt_main.hasFocus():
+                if key == Qt.Key_Up and (modifiers & Qt.ControlModifier):
+                    self.txt_title.setFocus()
             # tr_search
             elif self.tr_search.hasFocus():
                 if key in (Qt.Key_Enter, Qt.Key_Return):
@@ -61,6 +62,15 @@ class Signals:
             func(*args)
 
         return f
+
+    def replace_key(self):
+        if self.mode != "edit":
+            return;
+        btn, txt_from, txt_to, match_case, words = self.replace_dlg.exec()
+        if btn:
+            self.txt_main.setPlainText(re.sub(txt_from if not words else f"\\b{txt_from}", txt_to,
+                                              self.txt_main.toPlainText(),
+                                              flags=re.IGNORECASE if not match_case else 0))
 
     @staticmethod
     def tr_item_changed(item):
