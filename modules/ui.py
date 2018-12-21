@@ -2,16 +2,16 @@
 
 # Form implementation generated from reading ui file 'ui.ui'
 #
-# Created by: PyQt5 UI code generator 5.11.3
+# Created by: PyQt5 UI code generator 5.7.1
 #
 # WARNING! All changes made in this file will be lost!
 
-from PyQt5 import QtCore, QtGui, QtWidgets, QtWebEngineWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(706, 403)
+        MainWindow.resize(795, 525)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -98,11 +98,10 @@ class Ui_MainWindow(object):
         self.view = QtWidgets.QWidget()
         self.view.setObjectName("view")
         self.horizontalLayout_5 = QtWidgets.QHBoxLayout(self.view)
+        self.horizontalLayout_5.setContentsMargins(0, 0, 0, 0)
         self.horizontalLayout_5.setObjectName("horizontalLayout_5")
-        # self.tb_view = QtWidgets.QTextBrowser(self.view)
         self.web_view = QtWebEngineWidgets.QWebEngineView(self.view)
-        # self.tb_view.setOpenExternalLinks(True)
-        self.web_view.setObjectName("tb_view")
+        self.web_view.setObjectName("web_view")
         self.horizontalLayout_5.addWidget(self.web_view)
         self.st_widget.addWidget(self.view)
         self.gridLayout.addWidget(self.st_widget, 1, 0, 2, 1)
@@ -134,7 +133,7 @@ class Ui_MainWindow(object):
         self.gridLayout.addWidget(self.grp_tags, 0, 1, 2, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 706, 21))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 795, 21))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
@@ -154,3 +153,4 @@ class Ui_MainWindow(object):
         self.checkBox_2.setText(_translate("MainWindow", "CheckBox"))
         self.checkBox.setText(_translate("MainWindow", "CheckBox"))
 
+from PyQt5 import QtWebEngineWidgets
