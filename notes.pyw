@@ -5,7 +5,6 @@ from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-import re
 from os import path
 import time
 
@@ -13,6 +12,7 @@ import time
 from modules.db import db
 from modules.ui import Ui_MainWindow
 from modules.md import Md
+from modules.signals import Signals
 
 
 def qt_message_handler(mode, context, message):
@@ -35,7 +35,7 @@ qInstallMessageHandler(qt_message_handler)
 qDebug('MyApp')
 
 
-class Form(QMainWindow, Ui_MainWindow):
+class Form(QMainWindow, Ui_MainWindow, Signals):
     @staticmethod
     def show_msg_box(mb_type):
         msg_box = QMessageBox()
@@ -96,10 +96,14 @@ class Form(QMainWindow, Ui_MainWindow):
                 self.txt_title.setFocus()
             self.btn_new_save.setText("New")
             self.btn_new_save.setEnabled(True)
-            self.update_tag_checkboxes()
+            self.draw_tag_checkboxes()
             self.update_search()
             self.statusbar.showMessage("New note |Ctrl-N, Ctrl-Enter|     Open note |Enter|")
         else:
+            note = db.get_note(self.cur_note_id)
+            note_id, note_title, note_body = note if note and len(note) == 3 else (None, None, None)
+            note_tags = db.get_note_tags(self.cur_note_id)
+            self.tags = list(note_tags) if note_tags else []
             if "new" in mode:
                 self.mode = "new"
                 self.st_widget.setCurrentIndex(0)
@@ -119,7 +123,6 @@ class Form(QMainWindow, Ui_MainWindow):
                 self.txt_main.setPlainText(text + '\n' + '*' * 3 + '\n')
                 self.btn_new_save.setText("Save")
                 self.btn_new_save.setEnabled(True)
-                self.update_tag_checkboxes()
                 self.statusbar.showMessage("Save note |Ctrl-S|     Return to search |Ctrl-F, Escape|")
             elif "edit" in mode:
                 self.mode = "edit"
@@ -128,6 +131,11 @@ class Form(QMainWindow, Ui_MainWindow):
                 self.txt_title.setEnabled(True)
                 self.btn_new_save.setText("New")
                 self.btn_new_save.setEnabled(False)
+                if all((note_id, note_title, note_body)):
+                    self.txt_title.setText(note_title + (' #' + ' #'.join(note_tags) if note_tags else ""))
+                    self.txt_main.setPlainText(note_body)
+                    if note_tags:
+                        self.tags = list(note_tags) if note_tags else []
                 self.txt_main.setFocus()
                 self.statusbar.showMessage(
                     "New note |Ctrl-N|     Save note |Ctrl-S|     Return to search |Ctrl-F, Escape|")
@@ -138,9 +146,14 @@ class Form(QMainWindow, Ui_MainWindow):
                 self.txt_title.setEnabled(False)
                 self.btn_new_save.setText("New")
                 self.btn_new_save.setEnabled(True)
+                if all((note_id, note_title, note_body)):
+                    if note_tags:
+                        self.txt_title.setText(note_title + (' #' + ' #'.join(note_tags) if note_tags else ""))
+                    self.tb_view.setHtml(self.markdown.render_html(f"# {self.txt_title.text()}\n{note_body}"))
                 self.tb_view.setFocus()
                 self.statusbar.showMessage(
                     "New note |Ctrl-N|     Edit note |Ctrl-E, Enter|     Return to search |Ctrl-F, Escape|")
+            self.draw_tag_checkboxes(False if mode is "view" else True)
 
     def update_search(self):
         self.search_data.clear()
@@ -185,13 +198,7 @@ class Form(QMainWindow, Ui_MainWindow):
 
             self.btn_new_save.setEnabled(True)
 
-    def update_tag_checkboxes(self, enabled=True):
-        for i in range(self.tags_layout.count()):
-            cb_tag = self.tags_layout.itemAt(i).widget()
-            cb_tag.setEnabled(enabled)
-            cb_tag.setChecked(True if cb_tag.text()[1:] in self.tags else False)
-
-    def draw_tag_checkboxes(self):
+    def draw_tag_checkboxes(self, enabled=True):
         for i in reversed(range(self.tags_layout.count())):
             self.tags_layout.itemAt(i).widget().setParent(None)
         self.all_tags = db.get_all_tags()
@@ -201,166 +208,10 @@ class Form(QMainWindow, Ui_MainWindow):
                 cb_tag.setText(f"#{tag}")
                 cb_tag.setObjectName(f"cb_tag{i + 1}")
                 cb_tag.setFocusPolicy(Qt.NoFocus)
+                cb_tag.setEnabled(enabled)
+                cb_tag.setChecked(True if tag in self.tags else False)
                 cb_tag.clicked.connect(self.cb_clicked)
                 self.tags_layout.addWidget(cb_tag)
-            self.update_tag_checkboxes()
-
-    def key_pressed(self, func):
-        def f(*args):
-            key = args[0].key()
-            modifiers = args[0].modifiers()
-            #  global
-            if self.btn_new_save.isEnabled() and (
-                    # ctrl-s
-                    (key == Qt.Key_S and (modifiers & Qt.ControlModifier) and self.btn_new_save.text() == "Save") or
-                    # ctrl-n
-                    (key == Qt.Key_N and (modifiers & Qt.ControlModifier) and self.btn_new_save.text() == "New")):
-                self.btn_new_save_clicked()
-            elif key == Qt.Key_Escape:
-                if self.mode == 'search':
-                    self.txt_title.setText("")
-                else:
-                    self.set_mode("search_title")
-            elif self.btn_search.isEnabled() and key == Qt.Key_F \
-                    and (modifiers & Qt.ControlModifier):
-                self.btn_search_clicked()
-            elif self.mode == "view":
-                if key in (Qt.Key_Enter, Qt.Key_Return) or key == Qt.Key_E and (modifiers & Qt.ControlModifier):
-                    self.tb_edit()
-            # txt_title
-            elif self.txt_title.hasFocus():
-                if key in (Qt.Key_Enter, Qt.Key_Return) and (modifiers & Qt.ControlModifier):
-                    self.set_mode("new_title")
-                elif key == Qt.Key_Down:
-                    if self.mode == "search" and self.search_data.rowCount():
-                        self.tr_search.setCurrentIndex(self.search_data.index(0, 0))
-                        self.tr_search.setFocus()
-                    elif self.mode != "search":
-                        self.txt_main.setFocus()
-            # txt_main
-            elif self.txt_main.hasFocus() and key == Qt.Key_Up and (modifiers & Qt.ControlModifier):
-                self.txt_title.setFocus()
-            # tr_search
-            elif self.tr_search.hasFocus():
-                if key in (Qt.Key_Enter, Qt.Key_Return):
-                    self.tr_double_clicked(self.tr_search.currentIndex())
-                elif self.tr_search.currentIndex() == self.search_data.index(0, 0) \
-                        and key == Qt.Key_Up:
-                    self.txt_title.setFocus()
-                elif key == Qt.Key_Delete:
-                    item = self.tr_search.currentIndex()
-                    note_type = item.data(Qt.UserRole + 2)
-                    if note_type == "title":
-                        if key == Qt.Key_Delete and self.show_msg_box("delete") == QMessageBox.Yes:
-                            db.delete_note(item.data(Qt.UserRole + 1))
-                            self.draw_tag_checkboxes()
-                            self.update_search()
-            func(*args)
-
-        return f
-
-    @staticmethod
-    def tr_item_changed(item):
-        item_id = item.data(Qt.UserRole + 1)
-        item_type = item.data(Qt.UserRole + 2)
-        item_text = item.text()
-        if item_type == "title":
-            db.update_note_title(item_id, item_text)
-        elif item_type == "body":
-            db.update_note_body(item_id, item_text)
-
-    def txt_title_text_changed(self, txt):
-        self.title = txt
-        self.tags = [tag for tag in re.findall("#(\\w+)", self.title)]
-        self.update_tag_checkboxes()
-        # self.tags = sorted(self.tags, key=lambda x: len(x), reverse=True)
-        for tag in self.tags:
-            self.title = self.title.replace('#' + tag, '')
-        self.title = self.title.strip()
-        if self.mode == "search":
-            self.update_search()
-        else:
-            self.update_btn_new_save()
-
-    def txt_main_text_changed(self):
-        self.body = self.txt_main.toPlainText()
-        if self.mode != "search":
-            self.update_btn_new_save()
-
-    def btn_new_save_clicked(self):
-        if self.btn_new_save.text() == "New":
-            self.set_mode("new")
-        elif self.btn_new_save.text() == "Save":
-            # if not self.tags and self.show_msg_box("tags") == Qt.Key_Cancel:
-            #     return
-            if self.mode == "new":
-                self.cur_note_id = db.insert_note(self.title, self.body)
-                self.set_mode("edit")
-            elif self.cur_note_id:
-                db.update_note(self.cur_note_id, self.title, self.body)
-                self.btn_new_save.setText("New")
-            db.set_note_tags(self.cur_note_id, self.tags)
-            self.draw_tag_checkboxes()
-
-    def btn_search_clicked(self):
-        self.set_mode("search")
-
-    def cb_clicked(self, checked):
-        tag = self.sender().text()
-        if not tag:
-            return
-        txt = self.txt_title.text()
-        if checked and tag not in txt:
-            self.txt_title.setText(txt + f" {tag}")
-        elif not checked and tag in txt:
-            self.txt_title.setText(txt.replace(' ' + tag, ""))
-        if self.mode == "search":
-            self.update_search()
-        else:
-            self.update_btn_new_save()
-
-    def tr_clicked(self, index):
-        if self.tr_search.isExpanded(index):
-            self.tr_search.setExpanded(index, False)
-        else:
-            self.tr_search.setExpanded(index, True)
-        print(index.data(Qt.UserRole + 1))
-
-    def tr_double_clicked(self, index):
-        self.cur_note_id = index.data(Qt.UserRole + 1)
-        self.search = self.txt_title.text()
-        note = db.get_note(self.cur_note_id)
-        if not note:
-            return
-        note_id, note_title, note_body = note
-        note_tags = db.get_note_tags(self.cur_note_id)
-        if all((note_id, note_title, note_body)):
-            self.txt_title.setText(note_title + (' #' + ' #'.join(note_tags) if note_tags else ""))
-            self.tb_view.setHtml(self.markdown.render_html(f"# {self.txt_title.text()}\n{note_body}"))
-            self.tags = list(note_tags) if note_tags else []
-            self.update_tag_checkboxes(False)
-            self.set_mode("view")
-
-    def tb_view_menu_requested(self, pt):
-        menu = QMenu(self)
-        action_edit = QAction("Edit note")
-        action_edit.triggered.connect(self.tb_edit)
-        menu.addAction(action_edit)
-        menu.exec(self.tb_view.mapToGlobal(pt))
-
-    def tb_edit(self):
-        self.search = self.txt_title.text()
-        note = db.get_note(self.cur_note_id)
-        if not note:
-            return
-        note_id, note_title, note_body = note
-        note_tags = db.get_note_tags(self.cur_note_id)
-        if all((note_id, note_title, note_body)):
-            self.txt_title.setText(note_title + (' #' + ' #'.join(note_tags) if note_tags else ""))
-            self.txt_main.setPlainText(note_body)
-            self.tags = list(note_tags) if note_tags else []
-            self.update_tag_checkboxes()
-            self.set_mode("edit")
 
     def __init__(self):
         # UI init
