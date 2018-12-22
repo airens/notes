@@ -1,5 +1,4 @@
 import sys
-import json
 
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
@@ -7,6 +6,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from os import path
 import time
+import configparser
 
 
 from modules.db import db
@@ -33,6 +33,43 @@ def qt_message_handler(mode, context, message):
 
 qInstallMessageHandler(qt_message_handler)
 qDebug('MyApp')
+
+
+class ReplaceDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        self.lbl_from = QLabel(self, text="Replace")
+        self.txt_from = QLineEdit(self)
+        self.lbl_to = QLabel(self, text="With")
+        self.txt_to = QLineEdit(self)
+        h_layout = QHBoxLayout()
+        self.cb_match_case = QCheckBox(self, text="Match &case")
+        shortcut = QShortcut(QKeySequence("Alt+C"), self)
+        shortcut.activated.connect(self.cb_match_case.click)
+        self.cb_words = QCheckBox(self, text="W&ords")
+        shortcut = QShortcut(QKeySequence("Alt+O"), self)
+        shortcut.activated.connect(self.cb_words.click)
+        layout.addWidget(self.lbl_from)
+        layout.addWidget(self.txt_from)
+        layout.addWidget(self.lbl_to)
+        layout.addWidget(self.txt_to)
+        h_layout.addWidget(self.cb_match_case)
+        h_layout.addWidget(self.cb_words)
+        layout.addLayout(h_layout)
+        # OK and Cancel buttons
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
+            Qt.Horizontal, self)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        self.setWindowTitle("Replace")
+
+    def exec(self):
+        result = self.exec_()
+        return result, self.txt_from.text(), self.txt_to.text(), \
+               self.cb_match_case.isChecked(), self.cb_words.isChecked()
 
 
 class Form(QMainWindow, Ui_MainWindow, Signals):
@@ -63,7 +100,7 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         elif mb_type == "backup":
             msg_box.setWindowTitle("Backup")
             msg_box.setIcon(QMessageBox.Critical)
-            msg_box.setText("Can't make backup of database! Check path in settings.json")
+            msg_box.setText("Can't make backup of database! Check path in settings")
             msg_box.setStandardButtons(QMessageBox.Ok)
             return msg_box.exec()
 
@@ -138,7 +175,7 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
                         self.tags = list(note_tags) if note_tags else []
                 self.txt_main.setFocus()
                 self.statusbar.showMessage(
-                    "New note |Ctrl-N|     Save note |Ctrl-S|     Return to search |Ctrl-F, Escape|")
+                    "New note |Ctrl-N|     Save note |Ctrl-S|     Replace |Ctrl-H|     Return to search |Ctrl-F, Escape|")
             elif "view" in mode:
                 self.mode = "view"
                 self.st_widget.setCurrentIndex(2)
@@ -217,18 +254,20 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         super().__init__()
         self.setupUi(self)
         self.dir = path.dirname(__file__)
-        with open("settings.json") as file:
-            try:
-                settings = json.load(file)
-                if "main_window" in settings:
-                    if "width" in settings["main_window"] and "height" in settings["main_window"]:
-                        self.resize(settings["main_window"]["width"], settings["main_window"]["height"])
-                css = settings.get("misc", {}).get("css", [])
-                self.markdown = Md(*css)
-                self.backup_path = settings.get('backup', {}).get('backup_path')
-            except Exception as e:
-                print("JSON", e)
-                raise e
+        self.replace_dlg = ReplaceDialog()
+
+        self.conf = configparser.ConfigParser(allow_no_value=True)
+        self.conf.read("notes.ini")
+        width = self.conf.getint("SAVED_PARAMS", "WIDTH", fallback=None)
+        height = self.conf.getint("SAVED_PARAMS", "HEIGHT", fallback=None)
+        if width and height:
+            self.resize(width, height)
+        self.backup_path = self.conf.get("CUSTOM", "BACKUP_PATH", fallback=self.dir)
+        css = self.conf.get("CUSTOM", "CSS", fallback="")
+        css = css.split()
+        self.markdown = Md(*css)
+        self.replace_dlg.cb_match_case.setChecked(self.conf.getboolean("SAVED_PARAMS", "MATCH_CASE", fallback=False))
+        self.replace_dlg.cb_words.setChecked(self.conf.getboolean("SAVED_PARAMS", "WORDS", fallback=False))
         # local vars
         self.title = ""
         self.body = ""
@@ -238,7 +277,7 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         self.mode = "search"
         self.cur_note_id = None
         self.tags_count_prev = 0
-        if path.exists(path.join(self.backup_path, db.fname)):
+        if path.exists(path.join(self.backup_path, db.fname + ".backup")):
             self.last_backup = time.ctime(path.getmtime(self.backup_path))
         else:
             self.last_backup = "---"
@@ -256,18 +295,14 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         self.web_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.web_view.customContextMenuRequested.connect(self.tb_view_menu_requested)
         # events
-        # self.tr_search.clicked.connect(self.tr_clicked)
         self.tr_search.doubleClicked.connect(self.tr_double_clicked)
         self.search_data.itemChanged.connect(self.tr_item_changed)
-
         self.tags_layout.setAlignment(Qt.AlignTop)
         self.btn_new_save.clicked.connect(self.btn_new_save_clicked)
         self.btn_search.clicked.connect(self.btn_search_clicked)
         self.txt_title.textChanged.connect(self.txt_title_text_changed)
-        # self.txt_title.btnClicked.connect(self.btn_history_click)
-        # self.txt_title.selected.connect(self.srch_selected)
         self.txt_main.textChanged.connect(self.txt_main_text_changed)
-        # self.txt_main.resize.connect(self.resize)
+        QShortcut(QKeySequence("Ctrl+H"), self).activated.connect(self.replace_key)
         # keypresses
         self.tr_search.keyPressEvent = self.key_pressed(self.tr_search.keyPressEvent)
         self.txt_title.keyPressEvent = self.key_pressed(self.txt_title.keyPressEvent)
@@ -283,22 +318,17 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         if self.ask_to_save() == 'cancel':
             event.ignore()
             return
-        settings = {"main_window": {}}
-        try:
-            settings = json.load(open("settings.json"))
-        except Exception as e:
-            print("JSON", e)
-        settings["main_window"]["width"] = self.width()
-        settings["main_window"]["height"] = self.height()
-        try:
-            json.dump(settings, open("settings.json", 'w'))
-        except Exception as e:
-            print("JSON", e)
+        if "SAVED_PARAMS" not in self.conf:
+            self.conf["SAVED_PARAMS"] = {}
+        self.conf["SAVED_PARAMS"]["WIDTH"] = str(self.width())
+        self.conf["SAVED_PARAMS"]["HEIGHT"] = str(self.height())
+        self.conf["SAVED_PARAMS"]["MATCH_CASE"] = str(self.replace_dlg.cb_match_case.isChecked())
+        self.conf["SAVED_PARAMS"]["WORDS"] = str(self.replace_dlg.cb_words.isChecked())
+        with open("notes.ini", 'w') as file:
+            self.conf.write(file)
         if self.backup_path:
             if not db.make_backup(self.backup_path):
                 print("Failed to make database backup!")
-
-    # def __del__(self):
 
 
 def main():
