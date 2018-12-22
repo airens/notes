@@ -27,7 +27,7 @@ class Md:
     def __init__(self, *argsv):
         self.css = ""
         for css_file in argsv:
-            filename = path.join(path.dirname(__file__), css_file)
+            filename = path.join(path.dirname(__file__), css_file.strip())
             if path.exists(filename):
                 with open(filename) as file:
                     self.css += file.read()
