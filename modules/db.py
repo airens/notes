@@ -177,7 +177,7 @@ class Db:
 
     def make_backup(self, filepath):
         try:
-            shutil.copyfile(self.fname, shutil.os.path.join(filepath, self.fname))
+            shutil.copyfile(self.fname, shutil.os.path.join(filepath, self.fname + ".backup"))
             print(f"Made backup of {self.fname} at {filepath}")
             return True
         except Exception as e:
