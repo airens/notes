@@ -8,6 +8,7 @@ This is a simple programmer's notes application.
 4. Tag system to categorize notes
 5. Quick keyboard shortcuts
 6. Automatic backup of database to selected folder after every runtime
+7. Find and replace
 ## Settings (notes.ini):
 ```ini
 [DEFAULT]

@@ -64,13 +64,17 @@ class Signals:
         return f
 
     def replace_key(self):
-        if self.mode != "edit":
+        if self.mode != "edit" and self.mode != "new":
             return;
         btn, txt_from, txt_to, match_case, words = self.replace_dlg.exec()
         if btn:
-            self.txt_main.setPlainText(re.sub(txt_from if not words else f"\\b{txt_from}", txt_to,
-                                              self.txt_main.toPlainText(),
-                                              flags=re.IGNORECASE if not match_case else 0))
+            if not self.txt_main.textCursor().hasSelection():
+                self.txt_main.selectAll()
+            cursor = self.txt_main.textCursor()
+            selection = cursor.selection().toPlainText()
+            result = re.sub(txt_from if not words else f"\\b{txt_from}", txt_to, selection,
+                            flags=re.IGNORECASE if not match_case else 0)
+            cursor.insertText(result)
 
     @staticmethod
     def tr_item_changed(item):
@@ -106,12 +110,10 @@ class Signals:
         elif self.btn_new_save.text() == "Save":
             if self.mode == "new":  # makin' new note
                 self.cur_note_id = db.insert_note(self.title, self.body)
-                db.set_note_tags(self.cur_note_id, self.tags)
-                self.set_mode("edit")
             elif self.cur_note_id:  # edited existed note
                 db.update_note(self.cur_note_id, self.title, self.body)
-                db.set_note_tags(self.cur_note_id, self.tags)
-                self.set_mode("view")
+            db.set_note_tags(self.cur_note_id, self.tags)
+            self.set_mode("view")
 
 
     def btn_search_clicked(self):
