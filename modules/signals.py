@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
+from PyQt5.QtGui import QTextCursor
 import re
 
 from modules.db import db
@@ -44,6 +45,29 @@ class Signals:
             elif self.txt_main.hasFocus():
                 if key == Qt.Key_Up and (modifiers & Qt.ControlModifier):
                     self.txt_title.setFocus()
+                elif key == Qt.Key_Tab or key == Qt.Key_Backtab:
+                    cursor = self.txt_main.textCursor()
+                    if cursor.hasSelection():
+                        text = ""
+                        cnt = 0
+                        for line in cursor.selection().toPlainText().split('\n'):
+                            if not line:
+                                text += '\n'
+                            else:
+                                if key == Qt.Key_Tab:
+                                    text += '\t' + line + '\n'
+                                    cnt += 1
+                                else:
+                                    text += (line[1:] if line[0] == '\t' else line) + '\n'
+                                    cnt -= 1
+                        sel_start = cursor.selectionStart()
+                        sel_end = cursor.selectionEnd()
+                        cursor.insertText(text)
+                        # repair selection
+                        cursor.setPosition(sel_start)
+                        cursor.setPosition(sel_end + cnt, QTextCursor.KeepAnchor)
+                        self.txt_main.setTextCursor(cursor)
+                        return  # to cancel regular behaviour for TAB
             # tr_search
             elif self.tr_search.hasFocus():
                 if key in (Qt.Key_Enter, Qt.Key_Return):
@@ -65,7 +89,7 @@ class Signals:
 
     def replace_key(self):
         if self.mode != "edit" and self.mode != "new":
-            return;
+            return
         btn, txt_from, txt_to, match_case, words = self.replace_dlg.exec()
         if btn:
             if not self.txt_main.textCursor().hasSelection():
