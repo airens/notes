@@ -43,10 +43,18 @@ class Signals:
                         self.txt_main.setFocus()
             # txt_main
             elif self.txt_main.hasFocus():
+                cursor = self.txt_main.textCursor()
                 if key == Qt.Key_Up and (modifiers & Qt.ControlModifier):
                     self.txt_title.setFocus()
+                elif key in (Qt.Key_Enter, Qt.Key_Return):
+                    if not cursor.hasSelection():
+                        cursor.movePosition(QTextCursor.StartOfLine,  QTextCursor.KeepAnchor)
+                        line = cursor.selectedText()
+                        cnt = len(line) - len(line.lstrip())  # define count of whitespace symbols at the beginning
+                        line = line + '\n' + line[:cnt] + ('\t' if line[-1] == ':' else '')
+                        cursor.insertText(line)
+                        return
                 elif key == Qt.Key_Tab or key == Qt.Key_Backtab:
-                    cursor = self.txt_main.textCursor()
                     if cursor.hasSelection():
                         text = ""
                         cnt = 0
