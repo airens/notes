@@ -186,9 +186,9 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
                 if all((note_id, note_title, note_body)):
                     self.txt_title.setText(note_title + (' #' + ' #'.join(note_tags) if note_tags else ""))
                     self.web_view.setHtml(self.markdown.render_html(f"## {self.txt_title.text()}\n***\n{note_body}"))
-                self.web_view.setFocus()
                 self.statusbar.showMessage(
                     "New note |Ctrl-N|     Edit note |Ctrl-E, Enter|     Return to search |Ctrl-F, Escape|")
+                self.web_view.setFocus()
             self.draw_tag_checkboxes(False if mode is "view" else True)
 
     def update_search(self):
@@ -277,8 +277,9 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         self.mode = "search"
         self.cur_note_id = None
         self.tags_count_prev = 0
-        if path.exists(path.join(self.backup_path, db.fname + ".backup")):
-            self.last_backup = time.ctime(path.getmtime(self.backup_path))
+        filename = path.join(self.backup_path, db.fname + ".backup")
+        if path.exists(filename):
+            self.last_backup = time.ctime(path.getmtime(filename))
         else:
             self.last_backup = "---"
         # widgets init
