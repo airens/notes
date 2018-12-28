@@ -60,7 +60,7 @@ class Ui_MainWindow(object):
         self.txt_main.setAutoFillBackground(False)
         self.txt_main.setStyleSheet("")
         self.txt_main.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.txt_main.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
+        self.txt_main.setLineWrapMode(QtWidgets.QPlainTextEdit.WidgetWidth)
         self.txt_main.setPlainText("")
         self.txt_main.setObjectName("txt_main")
         self.horizontalLayout.addWidget(self.txt_main)
@@ -105,7 +105,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        self.st_widget.setCurrentIndex(1)
+        self.st_widget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):

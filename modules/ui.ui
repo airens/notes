@@ -48,7 +48,7 @@
     <item row="1" column="0" rowspan="2">
      <widget class="QStackedWidget" name="st_widget">
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="edit">
        <layout class="QHBoxLayout" name="horizontalLayout">
@@ -89,7 +89,7 @@
            <enum>Qt::ScrollBarAlwaysOff</enum>
           </property>
           <property name="lineWrapMode">
-           <enum>QPlainTextEdit::NoWrap</enum>
+           <enum>QPlainTextEdit::WidgetWidth</enum>
           </property>
           <property name="plainText">
            <string notr="true"/>
