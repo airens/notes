@@ -1,4 +1,6 @@
 import sys
+import logging
+from collections import namedtuple
 
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
@@ -6,13 +8,23 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from os import path
 import time
-import configparser
-
+import json
+import jsons
 
 from modules.db import db
 from modules.ui import Ui_MainWindow
 from modules.md import Md
 from modules.signals import Signals
+
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s: %(message)s",
+    handlers=[
+        logging.FileHandler(f"{__name__}.log"),
+        logging.StreamHandler()  # console
+    ])
+logger = logging.getLogger()
 
 
 def qt_message_handler(mode, context, message):
@@ -105,10 +117,10 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
             return msg_box.exec()
 
     def ask_to_save(self):
-        if self.btn_new_save.text() == "Save" and self.btn_new_save.isEnabled():
+        if self.save_enabled:
             btn = self.show_msg_box("save")
             if btn == QMessageBox.Save:
-                self.btn_new_save_clicked()
+                self.save()
                 return 'save'
             elif btn == QMessageBox.Cancel:
                 return 'cancel'
@@ -116,7 +128,7 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
                 return 'discard'
 
     def set_mode(self, mode):
-        self.lb_count.setText(f"Last backup: {self.last_backup} Total notes: {str(db.get_notes_count())}")
+        self.lb_count.setText(f"    Last backup: {self.last_backup} Total notes: {str(db.get_notes_count())}")
         if "search" in mode:
             if self.ask_to_save() == 'cancel':
                 return
@@ -128,19 +140,15 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
                 self.txt_title.setText(self.search)
                 self.tr_search.setFocus()
             else:
-                self.tags = []
                 self.txt_title.setText("")
                 self.txt_title.setFocus()
-            self.btn_new_save.setText("New")
-            self.btn_new_save.setEnabled(True)
             self.draw_tag_checkboxes()
             self.update_search()
-            self.statusbar.showMessage("New note |Ctrl-N, Ctrl-Enter|     Open note |Enter|")
         else:
             note = db.get_note(self.cur_note_id)
             note_id, note_title, note_body = note if note and len(note) == 3 else (None, None, None)
             note_tags = db.get_note_tags(self.cur_note_id)
-            self.tags = list(note_tags) if note_tags else []
+            self.save_enabled = False
             if "new" in mode:
                 self.mode = "new"
                 self.st_widget.setCurrentIndex(0)
@@ -158,38 +166,32 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
                 if "linux" in self.tags:
                     text = "```bash\n\n```"
                 self.txt_main.setPlainText(text + '\n' + '*' * 3 + '\n')
-                self.btn_new_save.setText("Save")
-                self.btn_new_save.setEnabled(True)
-                self.statusbar.showMessage("Save note |Ctrl-S|     Return to search |Ctrl-F, Escape|")
             elif "edit" in mode:
                 self.mode = "edit"
                 self.st_widget.setCurrentIndex(0)
                 self.setWindowTitle("Notes: edit")
                 self.txt_title.setEnabled(True)
-                self.btn_new_save.setText("New")
-                self.btn_new_save.setEnabled(False)
                 if all((note_id, note_title, note_body)):
                     self.txt_title.setText(note_title + (' #' + ' #'.join(note_tags) if note_tags else ""))
                     self.txt_main.setPlainText(note_body)
                     if note_tags:
                         self.tags = list(note_tags) if note_tags else []
                 self.txt_main.setFocus()
-                self.statusbar.showMessage(
-                    "New note |Ctrl-N|     Save note |Ctrl-S|     Replace |Ctrl-H|     Return to search |Ctrl-F, Escape|")
             elif "view" in mode:
                 self.mode = "view"
                 self.st_widget.setCurrentIndex(2)
                 self.setWindowTitle("Notes: view")
                 self.txt_title.setEnabled(False)
-                self.btn_new_save.setText("New")
-                self.btn_new_save.setEnabled(True)
                 if all((note_id, note_title, note_body)):
                     self.txt_title.setText(note_title + (' #' + ' #'.join(note_tags) if note_tags else ""))
                     self.web_view.setHtml(self.markdown.render_html(f"## {self.txt_title.text()}\n***\n{note_body}"))
-                self.statusbar.showMessage(
-                    "New note |Ctrl-N|     Edit note |Ctrl-E, Enter|     Return to search |Ctrl-F, Escape|")
                 self.web_view.setFocus()
             self.draw_tag_checkboxes(False if mode is "view" else True)
+        message = ""
+        for name, key_seq, modes_allowed in self.settings.shortcuts:
+            if any(shortcut_mode in mode for shortcut_mode in modes_allowed):
+                message += f"{name} ({key_seq})    "
+        self.statusbar.showMessage(message)
 
     def update_search(self):
         self.search_data.clear()
@@ -214,9 +216,9 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
                 title.appendRow(body)
                 self.search_data.appendRow(title)
 
-    def update_btn_new_save(self):
+    def update_save_enabled(self):
         if self.mode == "new":
-            self.btn_new_save.setEnabled(True if self.title else False)
+            self.save_enabled = True if self.title else False
         elif self.mode == "edit":
             note = db.get_note(self.cur_note_id)
             if not note:
@@ -228,26 +230,45 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
             if all((note_id, note_title, note_body)) and (self.title != note_title or
                                                           self.body != note_body or
                                                           sorted(self.tags) != sorted(note_tags)):
-                self.btn_new_save.setText("Save")
+                self.save_enabled = True
             else:
-                self.btn_new_save.setText("New")
-
-            self.btn_new_save.setEnabled(True)
+                self.save_enabled = False
 
     def draw_tag_checkboxes(self, enabled=True):
-        for i in reversed(range(self.tags_layout.count())):
-            self.tags_layout.itemAt(i).widget().setParent(None)
+        for i in reversed(range(self.v_layout_cb.count())):
+            self.v_layout_cb.itemAt(i).widget().setParent(None)
         self.all_tags = db.get_all_tags()
         if self.all_tags:
             for i, tag in enumerate(self.all_tags):
-                cb_tag = QCheckBox(self.grp_tags)
+                cb_tag = QCheckBox(self)
                 cb_tag.setText(f"#{tag}")
                 cb_tag.setObjectName(f"cb_tag{i + 1}")
                 cb_tag.setFocusPolicy(Qt.NoFocus)
                 cb_tag.setEnabled(enabled)
                 cb_tag.setChecked(True if tag in self.tags else False)
                 cb_tag.clicked.connect(self.cb_clicked)
-                self.tags_layout.addWidget(cb_tag)
+                self.v_layout_cb.addWidget(cb_tag)
+
+    def save(self):
+        if self.mode == "new":  # makin' new note
+            self.cur_note_id = db.insert_note(self.title, self.body)
+        elif self.cur_note_id:  # edited existed note
+            db.update_note(self.cur_note_id, self.title, self.body)
+        db.set_note_tags(self.cur_note_id, self.tags)
+        self.set_mode("view")
+
+    class Settings:
+        def __init__(self, **kwargs):
+            self.css = kwargs.get("css", [
+                "mini-nord.base.css",
+                "manni.css",
+                "global.css"])
+            self.backup_path = kwargs.get("backup_path")
+            self.shortcuts = kwargs.get("shortcuts", [])
+            self.init_width = kwargs.get("init_width")
+            self.init_height = kwargs.get("init_height")
+            self.replace_match_case = kwargs.get("replace_match_case", False)
+            self.replace_words = kwargs.get("replace_words", False)
 
     def __init__(self):
         # UI init
@@ -255,19 +276,14 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         self.setupUi(self)
         self.dir = path.dirname(__file__)
         self.replace_dlg = ReplaceDialog()
-
-        self.conf = configparser.ConfigParser(allow_no_value=True)
-        self.conf.read("notes.ini")
-        width = self.conf.getint("SAVED_PARAMS", "WIDTH", fallback=None)
-        height = self.conf.getint("SAVED_PARAMS", "HEIGHT", fallback=None)
-        if width and height:
-            self.resize(width, height)
-        self.backup_path = self.conf.get("CUSTOM", "BACKUP_PATH", fallback=self.dir)
-        css = self.conf.get("CUSTOM", "CSS", fallback="")
-        css = css.split()
+        with open("settings.json") as file:
+            self.settings = jsons.loads(file.read(), self.Settings)
+        if self.settings.init_width and self.settings.init_height:
+            self.resize(self.settings.init_width, self.settings.init_height)
+        css = self.settings.css
         self.markdown = Md(*css)
-        self.replace_dlg.cb_match_case.setChecked(self.conf.getboolean("SAVED_PARAMS", "MATCH_CASE", fallback=False))
-        self.replace_dlg.cb_words.setChecked(self.conf.getboolean("SAVED_PARAMS", "WORDS", fallback=False))
+        self.replace_dlg.cb_match_case.setChecked(self.settings.replace_match_case)
+        self.replace_dlg.cb_words.setChecked(self.settings.replace_words)
         # local vars
         self.title = ""
         self.body = ""
@@ -277,11 +293,12 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         self.mode = "search"
         self.cur_note_id = None
         self.tags_count_prev = 0
-        filename = path.join(self.backup_path, db.fname + ".backup")
+        filename = path.join(self.settings.backup_path, db.fname + ".backup")
         if path.exists(filename):
             self.last_backup = time.ctime(path.getmtime(filename))
         else:
             self.last_backup = "---"
+        self.save_enabled = False
         # widgets init
         sym_width = QFontMetrics(self.txt_main.font()).width(' ')
         self.txt_main.setTabStopWidth(4 * sym_width)
@@ -298,12 +315,12 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         # events
         self.tr_search.doubleClicked.connect(self.tr_double_clicked)
         self.search_data.itemChanged.connect(self.tr_item_changed)
-        self.tags_layout.setAlignment(Qt.AlignTop)
-        self.btn_new_save.clicked.connect(self.btn_new_save_clicked)
-        self.btn_search.clicked.connect(self.btn_search_clicked)
         self.txt_title.textChanged.connect(self.txt_title_text_changed)
         self.txt_main.textChanged.connect(self.txt_main_text_changed)
-        QShortcut(QKeySequence("Ctrl+H"), self).activated.connect(self.replace_key)
+        funcs = {"save": self.save_key, "new": self.new_key, "back": self.back_key, "edit": self.edit_key,
+                 "search": self.search_key, "replace": self.replace_key}
+        for name, key_seq, modes_allowed in self.settings.shortcuts:
+            QShortcut(QKeySequence(key_seq), self).activated.connect(funcs.get(name))
         # keypresses
         self.tr_search.keyPressEvent = self.key_pressed(self.tr_search.keyPressEvent)
         self.txt_title.keyPressEvent = self.key_pressed(self.txt_title.keyPressEvent)
@@ -319,16 +336,14 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         if self.ask_to_save() == 'cancel':
             event.ignore()
             return
-        if "SAVED_PARAMS" not in self.conf:
-            self.conf["SAVED_PARAMS"] = {}
-        self.conf["SAVED_PARAMS"]["WIDTH"] = str(self.width())
-        self.conf["SAVED_PARAMS"]["HEIGHT"] = str(self.height())
-        self.conf["SAVED_PARAMS"]["MATCH_CASE"] = str(self.replace_dlg.cb_match_case.isChecked())
-        self.conf["SAVED_PARAMS"]["WORDS"] = str(self.replace_dlg.cb_words.isChecked())
-        with open("notes.ini", 'w') as file:
-            self.conf.write(file)
-        if self.backup_path:
-            if not db.make_backup(self.backup_path):
+        self.settings.init_width = self.width()
+        self.settings.init_height = self.height()
+        self.settings.replace_match_case = self.replace_dlg.cb_match_case.isChecked()
+        self.settings.replace_words = self.replace_dlg.cb_words.isChecked()
+        with open("settings.json", 'w') as file:
+            json.dump(jsons.dump(self.settings), file, indent=4)
+        if self.settings.backup_path:
+            if not db.make_backup(self.settings.backup_path):
                 print("Failed to make database backup!")
 
 

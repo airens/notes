@@ -11,29 +11,9 @@ class Signals:
         def f(*args):
             key = args[0].key()
             modifiers = args[0].modifiers()
-            #  global
-            if self.btn_new_save.isEnabled() and (
-                    # ctrl-s
-                    (key == Qt.Key_S and (modifiers & Qt.ControlModifier) and self.btn_new_save.text() == "Save") or
-                    # ctrl-n
-                    (key == Qt.Key_N and (modifiers & Qt.ControlModifier) and self.btn_new_save.text() == "New")):
-                self.btn_new_save_clicked()
-            elif key == Qt.Key_Escape:
-                if self.mode == 'search':
-                    self.txt_title.setText("")
-                elif self.mode == 'edit':
-                    self.set_mode("view")
-                else:
-                    self.set_mode("search_title")
-            elif self.btn_search.isEnabled() and key == Qt.Key_F \
-                    and (modifiers & Qt.ControlModifier):
-                self.btn_search_clicked()
-            elif self.mode == "view":
-                if key in (Qt.Key_Enter, Qt.Key_Return) or key == Qt.Key_E and (modifiers & Qt.ControlModifier):
-                    self.set_mode("edit")
             # txt_title
-            elif self.txt_title.hasFocus():
-                if key in (Qt.Key_Enter, Qt.Key_Return) and (modifiers & Qt.ControlModifier):
+            if self.txt_title.hasFocus():
+                if key in (Qt.Key_Enter, Qt.Key_Return):
                     self.set_mode("new_title")
                 elif key == Qt.Key_Down:
                     if self.mode == "search" and self.search_data.rowCount():
@@ -50,10 +30,11 @@ class Signals:
                     if not cursor.hasSelection():
                         cursor.movePosition(QTextCursor.StartOfLine,  QTextCursor.KeepAnchor)
                         line = cursor.selectedText()
-                        cnt = len(line) - len(line.lstrip())  # define count of whitespace symbols at the beginning
-                        line = line + '\n' + line[:cnt] + ('\t' if line[-1] == ':' else '')
-                        cursor.insertText(line)
-                        return
+                        if line:
+                            cnt = len(line) - len(line.lstrip())  # define count of whitespace symbols at the beginning
+                            line = line + '\n' + line[:cnt] + ('\t' if line[-1] == ':' else '')
+                            cursor.insertText(line)
+                            return
                 elif key == Qt.Key_Tab or key == Qt.Key_Backtab:
                     if cursor.hasSelection():
                         text = ""
@@ -95,18 +76,39 @@ class Signals:
 
         return f
 
+    def save_key(self):
+        if self.save_enabled:
+            self.save()
+
+    def new_key(self):
+        self.set_mode("new")
+
+    def back_key(self):
+        if self.mode == 'search':
+            self.txt_title.setText("")
+        elif self.mode == 'edit':
+            self.set_mode("view")
+        else:
+            self.set_mode("search_title")
+
+    def edit_key(self):
+        if self.mode == "view":
+            self.set_mode("edit")
+
+    def search_key(self):
+        self.set_mode("search")
+
     def replace_key(self):
-        if self.mode != "edit" and self.mode != "new":
-            return
-        btn, txt_from, txt_to, match_case, words = self.replace_dlg.exec()
-        if btn:
-            if not self.txt_main.textCursor().hasSelection():
-                self.txt_main.selectAll()
-            cursor = self.txt_main.textCursor()
-            selection = cursor.selection().toPlainText()
-            result = re.sub(txt_from if not words else f"\\b{txt_from}", txt_to, selection,
-                            flags=re.IGNORECASE if not match_case else 0)
-            cursor.insertText(result)
+        if self.mode == "edit" or self.mode == "new":
+            btn, txt_from, txt_to, match_case, words = self.replace_dlg.exec()
+            if btn:
+                if not self.txt_main.textCursor().hasSelection():
+                    self.txt_main.selectAll()
+                cursor = self.txt_main.textCursor()
+                selection = cursor.selection().toPlainText()
+                result = re.sub(txt_from if not words else f"\\b{txt_from}", txt_to, selection,
+                                flags=re.IGNORECASE if not match_case else 0)
+                cursor.insertText(result)
 
     @staticmethod
     def tr_item_changed(item):
@@ -129,27 +131,12 @@ class Signals:
         if self.mode == "search":
             self.update_search()
         else:
-            self.update_btn_new_save()
+            self.update_save_enabled()
 
     def txt_main_text_changed(self):
         self.body = self.txt_main.toPlainText()
         if self.mode != "search":
-            self.update_btn_new_save()
-
-    def btn_new_save_clicked(self):
-        if self.btn_new_save.text() == "New":
-            self.set_mode("new")
-        elif self.btn_new_save.text() == "Save":
-            if self.mode == "new":  # makin' new note
-                self.cur_note_id = db.insert_note(self.title, self.body)
-            elif self.cur_note_id:  # edited existed note
-                db.update_note(self.cur_note_id, self.title, self.body)
-            db.set_note_tags(self.cur_note_id, self.tags)
-            self.set_mode("view")
-
-
-    def btn_search_clicked(self):
-        self.set_mode("search")
+            self.update_save_enabled()
 
     def cb_clicked(self, checked):
         tag = self.sender().text()
@@ -163,7 +150,7 @@ class Signals:
         if self.mode == "search":
             self.update_search()
         else:
-            self.update_btn_new_save()
+            self.update_save_enabled()
 
     def tr_clicked(self, index):
         if self.tr_search.isExpanded(index):
