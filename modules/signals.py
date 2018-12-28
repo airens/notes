@@ -2,7 +2,6 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import QTextCursor
 import re
-
 from modules.db import db
 
 
@@ -73,17 +72,19 @@ class Signals:
                             self.draw_tag_checkboxes()
                             self.update_search()
             func(*args)
-
         return f
 
     def save_key(self):
+        self.logger.debug("save_key()")
         if self.save_enabled:
             self.save()
 
     def new_key(self):
+        self.logger.debug("new_key()")
         self.set_mode("new")
 
     def back_key(self):
+        self.logger.debug("back_key()")
         if self.mode == 'search':
             self.txt_title.setText("")
         elif self.mode == 'edit':
@@ -92,13 +93,16 @@ class Signals:
             self.set_mode("search_title")
 
     def edit_key(self):
+        self.logger.debug("edit_key()")
         if self.mode == "view":
             self.set_mode("edit")
 
     def search_key(self):
+        self.logger.debug("search_key()")
         self.set_mode("search")
 
     def replace_key(self):
+        self.logger.debug("replace_key()")
         if self.mode == "edit" or self.mode == "new":
             btn, txt_from, txt_to, match_case, words = self.replace_dlg.exec()
             if btn:
@@ -166,9 +170,9 @@ class Signals:
     def tb_view_menu_requested(self, pt):
         menu = QMenu(self)
         action_edit = QAction("Edit note")
-        action_edit.triggered.connect(self.tb_action_edit_triggered)
+
+        def tb_action_edit_triggered():
+            self.set_mode("edit")
+        action_edit.triggered.connect(tb_action_edit_triggered)
         menu.addAction(action_edit)
         menu.exec(self.web_view.mapToGlobal(pt))
-
-    def tb_action_edit_triggered(self):
-        self.set_mode("edit")

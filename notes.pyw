@@ -1,6 +1,6 @@
 import sys
 import logging
-from collections import namedtuple
+import os
 
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
@@ -18,13 +18,12 @@ from modules.signals import Signals
 
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s %(levelname)s: %(message)s",
     handlers=[
-        logging.FileHandler(f"{__name__}.log"),
+        logging.FileHandler(f"{os.path.basename(__file__).partition('.')[0]}.log"),
         logging.StreamHandler()  # console
     ])
-logger = logging.getLogger()
 
 
 def qt_message_handler(mode, context, message):
@@ -129,8 +128,10 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
 
     def set_mode(self, mode):
         self.lb_count.setText(f"    Last backup: {self.last_backup} Total notes: {str(db.get_notes_count())}")
+        self.logger.debug(f"Setting mode to {mode}..")
         if "search" in mode:
             if self.ask_to_save() == 'cancel':
+                self.logger.debug("\tcanceled because of Save msg box")
                 return
             self.mode = "search"
             self.st_widget.setCurrentIndex(1)
@@ -160,12 +161,6 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
                     self.tags = []
                     self.txt_title.setText("")
                     self.txt_title.setFocus()
-                text = ""
-                if "python" in self.tags:
-                    text += "```python\n\n```"
-                if "linux" in self.tags:
-                    text = "```bash\n\n```"
-                self.txt_main.setPlainText(text + '\n' + '*' * 3 + '\n')
             elif "edit" in mode:
                 self.mode = "edit"
                 self.st_widget.setCurrentIndex(0)
@@ -192,13 +187,14 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
             if any(shortcut_mode in mode for shortcut_mode in modes_allowed):
                 message += f"{name} ({key_seq})    "
         self.statusbar.showMessage(message)
+        self.logger.debug("\tdone")
 
     def update_search(self):
         self.search_data.clear()
         if not len(self.title):
             search = db.get_all_notes(self.tags)
         else:
-            search = db.fts_note(self.title, self.tags)
+            search = db.fts_note(''.join([i for i in self.txt_title.text() if i.isalnum() or i.isspace()]), self.tags)
         if search:
             for note_id, note_title, note_body in search:
                 note_tags = db.get_note_tags(note_id)
@@ -256,6 +252,7 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
             db.update_note(self.cur_note_id, self.title, self.body)
         db.set_note_tags(self.cur_note_id, self.tags)
         self.set_mode("view")
+        self.logger.debug(f"Note {self.title} saved.")
 
     class Settings:
         def __init__(self, **kwargs):
@@ -271,6 +268,7 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
             self.replace_words = kwargs.get("replace_words", False)
 
     def __init__(self):
+        self.logger = logging.getLogger()
         # UI init
         super().__init__()
         self.setupUi(self)
@@ -278,6 +276,7 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         self.replace_dlg = ReplaceDialog()
         with open("settings.json") as file:
             self.settings = jsons.loads(file.read(), self.Settings)
+            self.logger.info("Settings loaded")
         if self.settings.init_width and self.settings.init_height:
             self.resize(self.settings.init_width, self.settings.init_height)
         css = self.settings.css
@@ -294,6 +293,7 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         self.cur_note_id = None
         self.tags_count_prev = 0
         filename = path.join(self.settings.backup_path, db.fname + ".backup")
+        self.logger.info(f"Backup filename is {filename}")
         if path.exists(filename):
             self.last_backup = time.ctime(path.getmtime(filename))
         else:
@@ -319,8 +319,15 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         self.txt_main.textChanged.connect(self.txt_main_text_changed)
         funcs = {"save": self.save_key, "new": self.new_key, "back": self.back_key, "edit": self.edit_key,
                  "search": self.search_key, "replace": self.replace_key}
+        cnt = 0
         for name, key_seq, modes_allowed in self.settings.shortcuts:
-            QShortcut(QKeySequence(key_seq), self).activated.connect(funcs.get(name))
+            if name in funcs:
+                QShortcut(QKeySequence(key_seq), self).activated.connect(funcs[name])
+                cnt += 1
+            else:
+                self.logger.warning(f"Don't now such a function {name}!")
+        if cnt != len(funcs):
+            self.logger.warning("Not all functions were connected to shortcuts!")
         # keypresses
         self.tr_search.keyPressEvent = self.key_pressed(self.tr_search.keyPressEvent)
         self.txt_title.keyPressEvent = self.key_pressed(self.txt_title.keyPressEvent)
@@ -333,8 +340,10 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         self.web_view.setHtml(self.markdown.render_html(""))  # just to initialise
 
     def closeEvent(self, event):
+        self.logger.debug("Closing the app...")
         if self.ask_to_save() == 'cancel':
             event.ignore()
+            self.logger.debug("Canceled because of Save dlg")
             return
         self.settings.init_width = self.width()
         self.settings.init_height = self.height()
@@ -342,9 +351,13 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         self.settings.replace_words = self.replace_dlg.cb_words.isChecked()
         with open("settings.json", 'w') as file:
             json.dump(jsons.dump(self.settings), file, indent=4)
+            self.logger.info("Saved settings")
         if self.settings.backup_path:
             if not db.make_backup(self.settings.backup_path):
-                print("Failed to make database backup!")
+                self.logger.error("Failed to make database backup!")
+            else:
+                self.logger.info("Built backup")
+        self.logger.debug("\tdone")
 
 
 def main():
