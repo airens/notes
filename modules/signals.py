@@ -56,6 +56,19 @@ class Signals:
                         cursor.setPosition(sel_end + cnt, QTextCursor.KeepAnchor)
                         self.txt_main.setTextCursor(cursor)
                         return  # to cancel regular behaviour for TAB
+                elif key == Qt.Key_Home:
+                    old_cursor = QTextCursor(cursor)
+                    cursor.clearSelection()
+                    cursor.movePosition(QTextCursor.StartOfLine, QTextCursor.KeepAnchor)
+                    line = cursor.selectedText()
+                    if line:
+                        cnt = len(line) - len(line.lstrip())  # define count of whitespace symbols at the beginning
+                        if cnt:
+                            new_pos = cnt if cnt != len(line) else 0
+                            old_cursor.setPosition(cursor.position() + new_pos,
+                                               QTextCursor.KeepAnchor if modifiers & Qt.ShiftModifier else QTextCursor.MoveAnchor)
+                            self.txt_main.setTextCursor(old_cursor)
+                            return
             # tr_search
             elif self.tr_search.hasFocus():
                 if key in (Qt.Key_Enter, Qt.Key_Return):

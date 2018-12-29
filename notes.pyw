@@ -120,19 +120,23 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
             btn = self.show_msg_box("save")
             if btn == QMessageBox.Save:
                 self.save()
+                self.save_enabled = False
                 return 'save'
             elif btn == QMessageBox.Cancel:
                 return 'cancel'
             else:
+                self.save_enabled = False
                 return 'discard'
 
     def set_mode(self, mode):
+        if mode == self.mode:
+            return
         self.lb_count.setText(f"    Last backup: {self.last_backup} Total notes: {str(db.get_notes_count())}")
         self.logger.debug(f"Setting mode to {mode}..")
+        if self.ask_to_save() == 'cancel':
+            self.logger.debug("\tcanceled because of Save msg box")
+            return
         if "search" in mode:
-            if self.ask_to_save() == 'cancel':
-                self.logger.debug("\tcanceled because of Save msg box")
-                return
             self.mode = "search"
             self.st_widget.setCurrentIndex(1)
             self.setWindowTitle("Notes: search")
@@ -149,12 +153,12 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
             note = db.get_note(self.cur_note_id)
             note_id, note_title, note_body = note if note and len(note) == 3 else (None, None, None)
             note_tags = db.get_note_tags(self.cur_note_id)
-            self.save_enabled = False
             if "new" in mode:
                 self.mode = "new"
                 self.st_widget.setCurrentIndex(0)
                 self.setWindowTitle("Notes: new")
                 self.txt_title.setEnabled(True)
+                self.txt_main.setPlainText("")
                 if mode == "new_title":
                     self.txt_main.setFocus()
                 else:
@@ -182,6 +186,7 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
                     self.web_view.setHtml(self.markdown.render_html(f"## {self.txt_title.text()}\n***\n{note_body}"))
                 self.web_view.setFocus()
             self.draw_tag_checkboxes(False if mode is "view" else True)
+        self.save_enabled = False
         message = ""
         for name, key_seq, modes_allowed in self.settings.shortcuts:
             if any(shortcut_mode in mode for shortcut_mode in modes_allowed):
@@ -214,8 +219,8 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
 
     def update_save_enabled(self):
         if self.mode == "new":
-            self.save_enabled = True if self.title else False
-        elif self.mode == "edit":
+            self.save_enabled = True
+        if self.mode == "edit":
             note = db.get_note(self.cur_note_id)
             if not note:
                 return
@@ -229,6 +234,7 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
                 self.save_enabled = True
             else:
                 self.save_enabled = False
+        self.save_enabled = self.save_enabled if self.title and self.body else False
 
     def draw_tag_checkboxes(self, enabled=True):
         for i in reversed(range(self.v_layout_cb.count())):
@@ -251,6 +257,7 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         elif self.cur_note_id:  # edited existed note
             db.update_note(self.cur_note_id, self.title, self.body)
         db.set_note_tags(self.cur_note_id, self.tags)
+        self.save_enabled = False
         self.set_mode("view")
         self.logger.debug(f"Note {self.title} saved.")
 
