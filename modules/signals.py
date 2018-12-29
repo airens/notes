@@ -48,6 +48,8 @@ class Signals:
                                 else:
                                     text += (line[1:] if line[0] == '\t' else line) + '\n'
                                     cnt -= 1
+                        if text:
+                            text = text[:-1]
                         sel_start = cursor.selectionStart()
                         sel_end = cursor.selectionEnd()
                         cursor.insertText(text)
