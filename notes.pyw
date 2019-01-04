@@ -296,7 +296,7 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
         self.search = ""
         self.tags = []
         self.all_tags = []
-        self.mode = "search"
+        self.mode = None
         self.cur_note_id = None
         self.tags_count_prev = 0
         filename = path.join(self.settings.backup_path, db.fname + ".backup")
