@@ -185,7 +185,7 @@ class Form(QMainWindow, Ui_MainWindow, Signals):
                     self.txt_title.setText(note_title + (' #' + ' #'.join(note_tags) if note_tags else ""))
                     self.web_view.setHtml(self.markdown.render_html(f"## {self.txt_title.text()}\n***\n{note_body}"))
                 self.web_view.setFocus()
-            self.draw_tag_checkboxes(False if mode is "view" else True)
+            self.draw_tag_checkboxes(False if mode == "view" else True)
         self.save_enabled = False
         message = ""
         for name, key_seq, modes_allowed in self.settings.shortcuts:
